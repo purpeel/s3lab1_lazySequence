@@ -1,18 +1,4 @@
-template <typename T>
-UniquePtr<T>::UniquePtr() 
-                  : ptr(new T()) 
-                  {}
-
-template <typename T>
-UniquePtr<T>::UniquePtr( T* ptr )
-                  : ptr(ptr) 
-                  {}
-
-template <typename T>
-UniquePtr<T>::UniquePtr( const UniquePtr<T>& other ) 
-                  : ptr( new T(*other.ptr) ) 
-                  {}
-
+//можно использовать команды препроцессора дл€ защиты от повторной компил€ции тпп
 template <typename T>
 UniquePtr<T>& UniquePtr<T>::operator=( const UniquePtr<T>& other ) {
     if (*this != other) {
@@ -36,21 +22,6 @@ UniquePtr<T>& UniquePtr<T>::operator=( UniquePtr<T>&& other ) {
         other.ptr = nullptr;
     }
     return *this;
-}
-
-template <typename T>
-UniquePtr<T>::~UniquePtr() {
-    delete this->ptr;
-}
-
-template <typename T>
-UniquePtr<T>::operator T*() {
-    return this->ptr;
-}
-
-template <typename T>
-T* UniquePtr<T>::operator->() {
-    return this->ptr;
 }
 
 template <typename T>
@@ -79,12 +50,6 @@ T* UniquePtr<T>::release() noexcept {
     auto *res = this->ptr;
     this->ptr = nullptr;
     return res;
-}
-
-template <typename T>
-void UniquePtr<T>::reset( T* ptr ) noexcept {
-    delete this->ptr;
-    this->ptr = ptr;
 }
 
 template <typename T>

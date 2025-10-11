@@ -2,26 +2,37 @@
 #define WEAK_PTR
 
 #include "util.hpp"
-#include "SharedPtr.hpp"
 
-template <typename T>
+template <class T>
+class SharedPtr;
+struct refCount; // check SharedPrt.hpp
+
+template <class T>
 class WeakPtr 
 {
 public:
     WeakPtr();
-    WeakPtr( T* ptr );
+    WeakPtr( T* (*FabricMethod)() );
 
     WeakPtr( const WeakPtr<T>& other );
     WeakPtr& operator=( const WeakPtr<T>& other );
 
+    WeakPtr( const SharedPtr<T>& other );
+    WeakPtr<T>& operator=( const SharedPtr<T>& other );
+
     WeakPtr( WeakPtr<T>&& other );
     WeakPtr& operator=( WeakPtr<T>&& other );
 
-    ~WeakPtr() {}
+    ~WeakPtr();
 public:
     void reset() noexcept;
 
-    int getCount() const noexcept;
+    long getSharedCount() const noexcept {
+        return this->controlBlock->hardRefs();
+    }
+    long getWeakCount() const noexcept {
+        return this->controlBlock->weakRefs();
+    }
     SharedPtr<T> lock() const noexcept;
 
     void swap( WeakPtr<T>& other ) noexcept;
@@ -29,12 +40,17 @@ public:
     operator bool() const noexcept;
 public:
     bool operator==( const WeakPtr<T>& other ) const noexcept;
+    bool operator==( const SharedPtr<T>& other ) const noexcept;
     bool operator==( T* const& other ) const noexcept;
     bool operator!=( const WeakPtr<T>& other ) const noexcept;
+    bool operator!=( const SharedPtr<T>& other ) const noexcept;
     bool operator!=( T* const& other ) const noexcept;
 private:
-    T* ptr;
+    UniquePtr<T>& ptr;
+
+    refCount* controlBlock;
 };
 
+#include "WeakPtr.tpp"
 
 #endif //WEAK_PTR

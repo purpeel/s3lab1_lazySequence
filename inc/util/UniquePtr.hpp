@@ -3,26 +3,39 @@
 
 #include "util.hpp"
 #include "SharedPtr.hpp"
+#include <functional>
 
-template <typename T>
+template <class T>
 class UniquePtr
 {
 public:
-    UniquePtr();
+    UniquePtr() : ptr(new T()) {}
 private:
-    UniquePtr( T* ptr );
+    UniquePtr( T* ptr ) : ptr(ptr) {}
     friend class SharedPtr<T>;
 public:
-    UniquePtr( const UniquePtr<T>& other );
+    UniquePtr( T* (*fabricMethod)() ) : ptr( fabricMethod() ) {}
+    UniquePtr( std::function<T*()>& fabricMethod ) : ptr( fabricMethod() ) {}
+    // конструкторы копирования возможно не нужны
+    UniquePtr( const UniquePtr<T>& other ) : ptr(new T(*other.ptr)) {}
     UniquePtr<T>& operator=( const UniquePtr<T>& other );
 
     UniquePtr( UniquePtr<T>&& other );
     UniquePtr<T>& operator=( UniquePtr<T>&& other );
 
-    ~UniquePtr();
+    ~UniquePtr() {
+        delete this->ptr;
+    }
 public:
-    operator T*() noexcept;
-    T* operator->() noexcept;
+    operator T*() noexcept {
+        return this->ptr;
+    }
+    T* operator->() noexcept {
+        return this->ptr;
+    }
+    const T* operator->() const noexcept {
+        return this->ptr;
+    }
     
     T& operator*();
     const T& operator*() const;
@@ -30,8 +43,6 @@ public:
     operator bool() const noexcept;
 public:
     T* release() noexcept;
-
-    // void reset( T* const& ptr ) noexcept; //! usage can cause UB so implementation's postponed until the end of strong consideration process
 
     void swap( UniquePtr<T>& other ) noexcept;
 public:
