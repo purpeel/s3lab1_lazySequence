@@ -1,5 +1,3 @@
-#include <cstdlib>
-
 template <typename T>
 DynamicArray<T>::DynamicArray() {
     try {
@@ -329,6 +327,14 @@ int DynamicArray<T>::getSize() const {
 template <typename T>
 int DynamicArray<T>::getCapacity() const {
     return this->capacity;
+}
+
+template<typename T>
+template<typename func>
+void DynamicArray<T>::map( func F ) {
+    for ( int index = 0; index < this->size; index++ ) {
+        (*this)[index] = F((*this)[index]);
+    }
 }
 
 template <typename T>

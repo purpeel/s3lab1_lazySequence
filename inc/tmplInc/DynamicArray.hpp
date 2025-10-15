@@ -45,6 +45,9 @@ public:
     DynamicArray<T>* swapImmutable( const int pos1, const int pos2 ) const;
     DynamicArray<T>* concatImmutable( const DynamicArray<T>& other ) const;
 public:
+    template<typename func>
+    void map( func F );
+public:
     const std::string print() const;
 private:
     int getCapacity() const;
