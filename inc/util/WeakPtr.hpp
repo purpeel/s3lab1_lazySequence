@@ -5,7 +5,9 @@
 
 template <class T>
 class SharedPtr;
-struct refCount; // check SharedPrt.hpp
+template <class T>
+class UniquePtr;
+struct refCount; // check SharedPtr.hpp
 
 template <class T>
 class WeakPtr 

@@ -23,6 +23,9 @@ public:
     UniquePtr( UniquePtr<T>&& other );
     UniquePtr<T>& operator=( UniquePtr<T>&& other );
 
+    UniquePtr( const SharedPtr<T>& other ) : ptr( new T(*other.ptr)) {}
+    UniquePtr<T>& operator=( const SharedPtr<T>& other );
+
     ~UniquePtr() {
         delete this->ptr;
     }

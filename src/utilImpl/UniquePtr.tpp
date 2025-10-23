@@ -25,6 +25,15 @@ UniquePtr<T>& UniquePtr<T>::operator=( UniquePtr<T>&& other ) {
 }
 
 template <typename T>
+UniquePtr<T>& UniquePtr<T>::operator=( const SharedPtr<T>& other ) {
+    if (*this != other ) {
+        delete this->ptr;
+        this->ptr = *other.ptr;
+    }
+    return *this;
+}
+
+template <typename T>
 T& UniquePtr<T>::operator*() {
     if (this->ptr == nullptr) {
         throw Exception( Exception::ErrorCode::NULL_DEREFERENCE );

@@ -42,6 +42,7 @@ SharedPtr<T>::~SharedPtr() {
         this->controlBlock->decreaseHardRefs();
     } else {
         delete &this->ptr;
+        this->controlBlock->decreaseHardRefs();
         if (this->controlBlock->weakRefs() == 0 ) {
             delete this->controlBlock;
         }
