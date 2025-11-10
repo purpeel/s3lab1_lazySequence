@@ -2,6 +2,7 @@
 #define DYNAMIC_ARRAY_H
 
 #include "util.hpp"
+#include <functional>
 
 template <typename T> 
 class DynamicArray 
@@ -45,8 +46,7 @@ public:
     DynamicArray<T>* swapImmutable( const int pos1, const int pos2 ) const;
     DynamicArray<T>* concatImmutable( const DynamicArray<T>& other ) const;
 public:
-    template<typename func>
-    void map( func F );
+    void map( std::function<T(T)> func );
 public:
     const std::string print() const;
 private:

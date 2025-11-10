@@ -1,121 +1,182 @@
 template <typename T>
-SharedPtr<T>& SharedPtr<T>::operator=( const UniquePtr<T>& other ) {
-    this->ptr = other;
-    this->controlBlock = new refCount(1, 0);
-    return *this;
+SharedPtr<T>& SharedPtr<T>::operator=( UniquePtr<T>&& other ) {
+    this->_ptr = other.release();
+    this._controlBlock = new RefCount(1, 0);
+    return *this;    
 }
 
 template <typename T>
-SharedPtr<T>::SharedPtr( const SharedPtr<T>& other ) : ptr( other.ptr ) { 
-    this->controlBlock = other.controlBlock;
-    this->controlBlock->increaseHardRefs();
+SharedPtr<T>::SharedPtr( const SharedPtr<T>& other ) : _ptr( other._ptr ) { 
+    this->_controlBlock = other._controlBlock;
+    this->_controlBlock->increaseHardRefs();
 }
 
 template <typename T>
 SharedPtr<T>& SharedPtr<T>::operator=( const SharedPtr<T>& other ) {
-    this->ptr = other.ptr;
-    this->controlBlock = other.controlBlock;
-    this->controlBlock->increaseHardRefs();
+    if (this != &other) {
+        this->_ptr = other._ptr;
+        this->_controlBlock = other._controlBlock;
+        this->_controlBlock->increaseHardRefs();
+    }
     return *this;
 }
 
 template <typename T>
 SharedPtr<T>::SharedPtr( SharedPtr<T>&& other ) {
-    this->ptr = other.ptr;
-    this->controlBlock = other.controlBlock;
-    other.ptr = nullptr;
+    this->_ptr = other._ptr;
+    this->_controlBlock = other._controlBlock;
+    other._ptr = new T();
+    other._controlBlock = new RefCount(1, 0);
 }
 
 template <typename T>
 SharedPtr<T>& SharedPtr<T>::operator=( SharedPtr<T>&& other ) {
-    if (*this != other) {
-        this->ptr = other.ptr;
-        this->controlBlock = other.controlBlock;
-        other.ptr = nullptr;
+    if (this != &other) {
+        this->_ptr = other._ptr;
+        this->_controlBlock = other._controlBlock;
+        other._ptr = new T();
+        other._controlBlock = new RefCount(1, 0);
     }
     return *this;
 }
 
 template <typename T>
 SharedPtr<T>::~SharedPtr() {
-    if (this->controlBlock->hardRefs() > 1) {
-        this->controlBlock->decreaseHardRefs();
+    if (this->_controlBlock->hardRefs() > 1) {
+        this->_controlBlock->decreaseHardRefs();
     } else {
-        delete &this->ptr;
-        this->controlBlock->decreaseHardRefs();
-        if (this->controlBlock->weakRefs() == 0 ) {
-            delete this->controlBlock;
+        delete this->_ptr;
+        this->_controlBlock->decreaseHardRefs();
+        if (!(this->_controlBlock->hasWeakRefs())) {
+            delete this->_controlBlock;
         }
     }
 }
 
 template <typename T>
+template <typename T2> requires (std::is_base_of_v<T,T2>)
+SharedPtr<T>& SharedPtr<T>::operator=( UniquePtr<T2>&& other ) {
+    *this->_ptr = std::move(other);
+    this._controlBlock = new RefCount(1, 0);
+
+    return *this;
+}
+
+template <typename T>
+template <typename T2> requires (std::is_base_of_v<T,T2>)
+SharedPtr<T>& SharedPtr<T>::operator=( const SharedPtr<T2>& other ) {
+    if (this != &other) {
+        this->_ptr = other._ptr;
+        this->_controlBlock = other._controlBlock;
+        this->_controlBlock->increaseHardRefs();
+    }
+    return *this;
+}
+
+
+template <typename T>
+template <typename T2> requires (std::is_base_of_v<T,T2>)
+SharedPtr<T>::SharedPtr( SharedPtr<T2>&& other ) {
+    this->_ptr = other._ptr;
+    this->_controlBlock = other._controlBlock;
+    other._ptr = new T2();
+    other._controlBlock = new RefCount(1, 0);
+}
+
+
+template <typename T>
+template <typename T2> requires (std::is_base_of_v<T,T2>)
+SharedPtr<T>& SharedPtr<T>::operator=( SharedPtr<T2>&& other ) {
+    if (static_cast<void*>(this) != static_cast<void*>(&other)) {
+        this->_ptr = other._ptr;
+        this->_controlBlock = other._controlBlock;
+        other._ptr = new T2();
+        other._controlBlock = new RefCount(1, 0);
+    }
+    return *this;
+}
+
+template <typename T>
 T& SharedPtr<T>::operator*() {
-    if (this->ptr == nullptr) {
+    if (!this->_ptr) {
         throw Exception( Exception::ErrorCode::NULL_DEREFERENCE );
     } 
-    return *(this->ptr);
+    return *this->_ptr;
 }
 
 template <typename T>
 const T& SharedPtr<T>::operator*() const {
-    if (this->ptr == nullptr) {
+    if (!this->_ptr) {
         throw Exception( Exception::ErrorCode::NULL_DEREFERENCE );
     } 
-    return *(this->ptr);
+    return *this->_ptr;
 }
 
 template <typename T>
 SharedPtr<T>::operator bool() const noexcept {
-    return this->ptr != nullptr;
+    return this->_ptr != nullptr;
 }
 
 template <typename T>
 void SharedPtr<T>::reset() noexcept {
-    this->controlBlock->decreaseHardRefs();
-    if (this->controlBlock->hardRefs() == 0) {
-        delete &this->ptr;
+    this->_controlBlock->decreaseHardRefs();
+    if (!this->_controlBlock->hasHardRefs()) {
+        delete this->_ptr;
     } else {
-        this->ptr = *(new UniquePtr<T>(nullptr));
-        this->refCount = new refCount(1, 0);
+        this->_ptr = nullptr;
+        this->_controlBlock = new RefCount(1, 0);
     }
 }
 
-// template <typename T>
-// void SharedPtr<T>::reset( T* const& ptr ) noexcept {
-//     (*this->refCount)--;
-//     if (*this->refCount == 0) {
-//         delete &this->ptr;
-//     } else {
-//         this->ptr = *(new UniquePtr<T>( ptr ));
-//         this->refCount = new long(1);
-//     }
-// }
-
 template <typename T>
 void SharedPtr<T>::swap( SharedPtr<T>& other ) noexcept {
-    auto temp = this->ptr;
-    this->ptr = other.ptr;
-    other.ptr = temp;
+    auto temp = this->_ptr;
+    this->_ptr = other._ptr;
+    other._ptr = temp;
 }
 
 template <typename T>
 bool SharedPtr<T>::operator==( const SharedPtr<T>& other ) const noexcept {
-    return this->ptr == other.ptr;
+    return *this->_ptr == *other._ptr;
 }
 
 template <typename T>
 bool SharedPtr<T>::operator==( T* const& other ) const noexcept {
-    return this->ptr == other;
+    return *this->_ptr == *other;
 }
 
 
 template <typename T>
 bool SharedPtr<T>::operator!=( const SharedPtr<T>& other ) const noexcept {
-    return this->ptr != other.ptr;
+    return *this->_ptr != *other._ptr;
 }
 
 template <typename T>
 bool SharedPtr<T>::operator!=( T* const& other ) const noexcept {
-    return this->ptr != other;
+    return *this->_ptr != *other;
+}
+
+template <typename T>
+template <typename T2> requires (std::is_base_of_v<T,T2>)
+bool SharedPtr<T>::operator==( const SharedPtr<T2>& other ) const noexcept {
+    return *this->_ptr == *other._ptr;
+}
+
+template <typename T>
+template <typename T2> requires (std::is_base_of_v<T,T2>)
+bool SharedPtr<T>::operator==( T2* const& other ) const noexcept {
+    return *this->_ptr == *other;
+}
+
+
+template <typename T>
+template <typename T2> requires (std::is_base_of_v<T,T2>)
+bool SharedPtr<T>::operator!=( const SharedPtr<T2>& other ) const noexcept {
+    return *this->_ptr != *other._ptr;
+}
+
+template <typename T>
+template <typename T2> requires (std::is_base_of_v<T,T2>)
+bool SharedPtr<T>::operator!=( T2* const& other ) const noexcept {
+    return *this->_ptr != *other;
 }

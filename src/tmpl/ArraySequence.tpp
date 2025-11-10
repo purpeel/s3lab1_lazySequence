@@ -1,5 +1,3 @@
-#include <cstdlib>
-
 template <typename T>
 ArraySequence<T>::ArraySequence() : array() {}
 
@@ -83,7 +81,7 @@ void ArraySequence<T>::copy( const Sequence<T>& src ) {
 }   
 
 template <typename T>
-ArraySequence<T>::~ArraySequence() { }
+ArraySequence<T>::~ArraySequence() {}
 
 template <typename T>
 void ArraySequence<T>::append( const T& value ) {

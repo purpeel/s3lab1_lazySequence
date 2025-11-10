@@ -1,79 +1,70 @@
 //можно использовать команды препроцессора дл€ защиты от повторной компил€ции тпп
 template <typename T>
-UniquePtr<T>& UniquePtr<T>::operator=( const UniquePtr<T>& other ) {
-    if (*this != other) {
-        delete this->ptr;
-        this->ptr = new T(*other.ptr);
-    }
-    return *this;
-}
-
-template <typename T>
-UniquePtr<T>::UniquePtr( UniquePtr<T>&& other ) {
-    this->ptr = other.ptr;
-    other.ptr = nullptr;
-}
-
-template <typename T>
 UniquePtr<T>& UniquePtr<T>::operator=( UniquePtr<T>&& other ) {
-    if (*this != other ) {
-        delete this->ptr;
-        this->ptr = other.ptr;
-        other.ptr = nullptr;
+    if (this != &other ) {
+        delete this->_ptr;
+        this->_ptr = other.release();
     }
     return *this;
 }
 
 template <typename T>
-UniquePtr<T>& UniquePtr<T>::operator=( const SharedPtr<T>& other ) {
-    if (*this != other ) {
-        delete this->ptr;
-        this->ptr = *other.ptr;
+template <typename T2> requires (std::is_base_of_v<T,T2>)
+UniquePtr<T>& UniquePtr<T>::operator=( UniquePtr<T2>&& other ) {
+    if (static_cast<void*>(this) != static_cast<void*>(&other)) {
+        delete this->_ptr;
+        this->_ptr = other.release();
     }
     return *this;
 }
 
 template <typename T>
 T& UniquePtr<T>::operator*() {
-    if (this->ptr == nullptr) {
+    if (this->_ptr == nullptr) {
         throw Exception( Exception::ErrorCode::NULL_DEREFERENCE );
     }
-    return *this->ptr;
+    return *this->_ptr;
 }
 
 template <typename T>
 const T& UniquePtr<T>::operator*() const {
-    if (this->ptr == nullptr) {
+    if (this->_ptr == nullptr) {
         throw Exception( Exception::ErrorCode::NULL_DEREFERENCE );
     }
-    return *this->ptr;
+    return *this->_ptr;
 }
 
 template <typename T>
 UniquePtr<T>::operator bool() const noexcept {
-    return this->ptr != nullptr;
+    return this->_ptr != nullptr;
+}
+
+template <typename T>
+void UniquePtr<T>::reset() noexcept {
+    delete this->_ptr;
+    this->_ptr = nullptr;
 }
 
 template <typename T>
 T* UniquePtr<T>::release() noexcept {
-    auto *res = this->ptr;
-    this->ptr = nullptr;
+    auto *res = this->_ptr;
+    this->_ptr = nullptr;
     return res;
 }
 
 template <typename T>
 void UniquePtr<T>::swap( UniquePtr<T>& other ) noexcept {
-    auto *tmp = this->ptr;
-    this->ptr = other.ptr;
-    other.ptr = tmp;
+    auto *tmp = this->_ptr;
+    this->_ptr = other._ptr;
+    other._ptr = tmp;
 }
 
 template <typename T>
 bool UniquePtr<T>::operator==( T* const& other ) const noexcept {
-    return this->ptr == other;
+    return this->_ptr == other;
 }
 
 template <typename T>
 bool UniquePtr<T>::operator!=( T* const& other ) const noexcept {
-    return this->ptr != other;
+    return this->_ptr != other;
 }

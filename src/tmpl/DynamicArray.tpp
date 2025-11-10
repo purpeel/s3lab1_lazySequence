@@ -330,10 +330,9 @@ int DynamicArray<T>::getCapacity() const {
 }
 
 template<typename T>
-template<typename func>
-void DynamicArray<T>::map( func F ) {
+void DynamicArray<T>::map( std::function<T(T)> func ) {
     for ( int index = 0; index < this->size; index++ ) {
-        (*this)[index] = F((*this)[index]);
+        (*this)[index] = func((*this)[index]);
     }
 }
 

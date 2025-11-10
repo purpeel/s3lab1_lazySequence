@@ -11,8 +11,8 @@ public:
     
     virtual void copy( const Sequence<T>& src ) = 0;
 
-    virtual ~Sequence() = default;
     virtual void clear() = 0;
+    virtual ~Sequence() = default;
 public:
     virtual void append( const T& value ) = 0;
     virtual void prepend( const T& value ) = 0;

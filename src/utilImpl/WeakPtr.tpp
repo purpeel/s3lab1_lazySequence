@@ -1,121 +1,164 @@
 template <typename T>
-WeakPtr<T>::WeakPtr() 
-              : ptr( *(new UniquePtr<T>() )) 
-              , controlBlock( new refCount(0, 1) )
-              {}
-
-template <typename T>
-WeakPtr<T>::WeakPtr( T* (*FabricMethod)() )           
-              : ptr( *(new UniquePtr<T>(FabricMethod)) )
-              , controlBlock( new refCount(0, 1 ) )
-              {}
-
-template <typename T>
-WeakPtr<T>::WeakPtr( const WeakPtr<T>& other ) : ptr(other.ptr) { 
-    this->controlBlock = other.controlBlock;
-    this->controlBlock->increaseWeakRefs(); 
+WeakPtr<T>::WeakPtr( const WeakPtr<T>& other ) : _ptr(other._ptr) { 
+    this->_controlBlock = other._controlBlock;
+    this->_controlBlock->increaseWeakRefs(); 
 }
 
 template <typename T>
 WeakPtr<T>& WeakPtr<T>::operator=( const WeakPtr<T>& other ) {
-    this->ptr = other.ptr;
-    this->controlBlock = other.controlBlock;
-    this->controlBlock->increaseWeakRefs();
+    this->_ptr = other._ptr;
+    this->_controlBlock = other._controlBlock;
+    this->_controlBlock->increaseWeakRefs();
     return *this;
 }
 
 template <typename T>
-WeakPtr<T>::WeakPtr( const SharedPtr<T>& other ) : ptr(other.ptr) {
-    this->controlBlock = other.controlBlock;
-    this->controlBlock->increaseWeakRefs();
+WeakPtr<T>::WeakPtr( const SharedPtr<T>& other ) : _ptr(other._ptr) {
+    this->_controlBlock = other._controlBlock;
+    this->_controlBlock->increaseWeakRefs();
 }
 
 template <typename T>
 WeakPtr<T>& WeakPtr<T>::operator=( const SharedPtr<T>& other ) {
-    this->ptr = other.ptr;
-    this->controlBlock = other.controlBlock;
-    this->controlBlock->increaseWeakRefs();
+    this->_ptr = other._ptr;
+    this->_controlBlock = other._controlBlock;
+    this->_controlBlock->increaseWeakRefs();
     return *this;
 }
 
 template <typename T>
-WeakPtr<T>::WeakPtr( WeakPtr<T>&& other ) {
-    this->ptr = other.ptr;
-    this->controlBlock = other.controlBlock;
-    //? consider deleting other
-    other.controlBlock = new refCount(0, 0);
-    other.ptr = nullptr;
+template<typename T2> requires (std::is_base_of_v<T,T2>)
+WeakPtr<T>::WeakPtr( const WeakPtr<T2>& other ) : _ptr(other._ptr) { 
+    this->_controlBlock = other._controlBlock;
+    this->_controlBlock->increaseWeakRefs(); 
 }
 
 template <typename T>
-WeakPtr<T>& WeakPtr<T>::operator=( WeakPtr<T>&& other ) {
-    if (*this != other ) {
-        this->ptr = other.ptr;
-        this->controlBlock = other.controlBlock;
-        other.controlBlock = new refCount(0, 0);
-        other.ptr = *(new UniquePtr<T>());
-    }
+template<typename T2> requires (std::is_base_of_v<T,T2>)
+WeakPtr<T>& WeakPtr<T>::operator=( const WeakPtr<T2>& other ) {
+    this->_ptr = other._ptr;
+    this->_controlBlock = other._controlBlock;
+    this->_controlBlock->increaseWeakRefs();
+    return *this;
+}
+
+template <typename T>
+template<typename T2> requires (std::is_base_of_v<T,T2>)
+WeakPtr<T>::WeakPtr( const SharedPtr<T2>& other ) : _ptr(other._ptr) {
+    this->_controlBlock = other._controlBlock;
+    this->_controlBlock->increaseWeakRefs();
+}
+
+template <typename T>
+template<typename T2> requires (std::is_base_of_v<T,T2>)
+WeakPtr<T>& WeakPtr<T>::operator=( const SharedPtr<T2>& other ) {
+    this->_ptr = other._ptr;
+    this->_controlBlock = other._controlBlock;
+    this->_controlBlock->increaseWeakRefs();
     return *this;
 }
 
 template <typename T>
 WeakPtr<T>::~WeakPtr() {
-    this->controlBlock->decreaseWeakRefs();
-    if ( this->controlBlock->weakRefs() == 0 && this->controlBlock->hardRefs() == 0 ) {
-        delete this->controlBlock;
+    this->_controlBlock->decreaseWeakRefs();
+    if ( this->_controlBlock->weakRefs() == 0 && this->_controlBlock->hardRefs() == 0 ) {
+        delete this->_controlBlock;
     }
 }
 
 template <typename T>
 void WeakPtr<T>::reset() noexcept {
-    this->ptr = nullptr;
-    this->controlBlock->decreaseWeakRefs();
-    this->controlBlock = new refCount(0, 0);
+    this->_ptr = nullptr;
+    this->_controlBlock->decreaseWeakRefs();
+    if (this->_controlBlock->weakRefs() == 0 && this->_controlBlock->hardRefs() == 0) {
+        delete this->_controlBlock;
+    }
+    this->_controlBlock = new RefCount(0, 1);
 }
 
 template <typename T>
 SharedPtr<T> WeakPtr<T>::lock() const noexcept {
-    return *(new SharedPtr<T>(this->ptr, this->controlBlock));
+    return SharedPtr<T>(this->_ptr, this->_controlBlock);
 }
 
 template <typename T>
 void WeakPtr<T>::swap( WeakPtr<T>& other ) noexcept {
-    auto *temp = this->ptr;
-    other.ptr = temp;
-    this->ptr = other.ptr;
+    auto *temp = this->_ptr;
+    this->_ptr = other._ptr;
+    other._ptr = temp;
+
+    auto *tempCount = this->_controlBlock;
+    this->_controlBlock = other._controlBlock;
+    other._controlBlock = temp;
 }
 
 template <typename T>
 WeakPtr<T>::operator bool() const noexcept {
-    return this->ptr != nullptr;
+    return this->_ptr;
 }
 
 template <typename T>
 bool WeakPtr<T>::operator==( const WeakPtr<T>& other ) const noexcept {
-    return this->ptr == other.ptr;
+    return this->_ptr == other._ptr;
 }
 
 template <typename T>
 bool WeakPtr<T>::operator==( const SharedPtr<T>& other ) const noexcept {
-    return this->ptr == other.ptr;
+    return this->_ptr == other._ptr;
 }
 
 template <typename T>
 bool WeakPtr<T>::operator==( T* const& other ) const noexcept {
-    return this->ptr == other;
+    return **this->_ptr == other;
 }
 
 template <typename T>
 bool WeakPtr<T>::operator!=( const WeakPtr<T>& other ) const noexcept {
-    return this->ptr != other.ptr;
+    return this->_ptr != other._ptr;
 }
 
 template <typename T>
 bool WeakPtr<T>::operator!=( const SharedPtr<T>& other ) const noexcept {
-    return this->ptr != other.ptr;
+    return this->_ptr != other._ptr;
 }
 
 template <typename T>
 bool WeakPtr<T>::operator!=( T* const& other ) const noexcept {
-    return this->ptr != other;
+    return **this->_ptr != other;
+}
+
+template <typename T>
+template<typename T2> requires (std::is_base_of_v<T,T2>)
+bool WeakPtr<T>::operator==( const WeakPtr<T2>& other ) const noexcept {
+    return this->_ptr == other._ptr;
+}
+
+template <typename T>
+template<typename T2> requires (std::is_base_of_v<T,T2>)
+bool WeakPtr<T>::operator==( const SharedPtr<T2>& other ) const noexcept {
+    return this->_ptr == other._ptr;
+}
+
+template <typename T>
+template<typename T2> requires (std::is_base_of_v<T,T2>)
+bool WeakPtr<T>::operator==( T2* const& other ) const noexcept {
+    return **this->_ptr == other;
+}
+
+template <typename T>
+template<typename T2> requires (std::is_base_of_v<T,T2>)
+bool WeakPtr<T>::operator!=( const WeakPtr<T2>& other ) const noexcept {
+    return this->_ptr != other._ptr;
+}
+
+template <typename T>
+template<typename T2> requires (std::is_base_of_v<T,T2>)
+bool WeakPtr<T>::operator!=( const SharedPtr<T2>& other ) const noexcept {
+    return this->_ptr != other._ptr;
+}
+
+template <typename T>
+template<typename T2> requires (std::is_base_of_v<T,T2>)
+bool WeakPtr<T>::operator!=( T2* const& other ) const noexcept {
+    return **this->_ptr != other;
 }

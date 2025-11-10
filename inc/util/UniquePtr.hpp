@@ -1,43 +1,54 @@
 #ifndef UNIQUE_PTR
 #define UNIQUE_PTR
 
-#include "util.hpp"
+#include <concepts>
+#include <type_traits>
 #include "SharedPtr.hpp"
-#include <functional>
 
 template <class T>
 class UniquePtr
 {
-public:
-    UniquePtr() : ptr(new T()) {}
-private:
-    UniquePtr( T* ptr ) : ptr(ptr) {}
-    friend class SharedPtr<T>;
-public:
-    UniquePtr( T* (*fabricMethod)() ) : ptr( fabricMethod() ) {}
-    UniquePtr( std::function<T*()>& fabricMethod ) : ptr( fabricMethod() ) {}
-    // конструкторы копирования возможно не нужны
-    UniquePtr( const UniquePtr<T>& other ) : ptr(new T(*other.ptr)) {}
-    UniquePtr<T>& operator=( const UniquePtr<T>& other );
+public: 
+    UniquePtr() requires (!std::is_abstract_v<T>) : _ptr( new T() ) {}
+    
+    UniquePtr() requires (std::is_abstract_v<T>) = delete;
 
-    UniquePtr( UniquePtr<T>&& other );
+    template <typename ... Ts>
+    UniquePtr<T> makeUnique( Ts&& ... args ) requires (!std::is_abstract_v<T>) {
+        return UniquePtr<T>( new T(std::forward(args)...));
+    }
+
+    template <typename ... Ts>
+    UniquePtr<T> makeUnique( Ts&& ... args ) requires (std::is_abstract_v<T>) = delete;
+
+    UniquePtr( const UniquePtr<T>& other ) = delete;
+    UniquePtr<T>& operator=( const UniquePtr<T>& other ) = delete;
+
+    UniquePtr( UniquePtr<T>&& other ) : _ptr( other.release() ) {}
     UniquePtr<T>& operator=( UniquePtr<T>&& other );
 
-    UniquePtr( const SharedPtr<T>& other ) : ptr( new T(*other.ptr)) {}
-    UniquePtr<T>& operator=( const SharedPtr<T>& other );
-
     ~UniquePtr() {
-        delete this->ptr;
+        if (this->_ptr) { delete this->_ptr; }
     }
 public:
-    operator T*() noexcept {
-        return this->ptr;
-    }
+    template <typename T2> requires (std::is_base_of_v<T,T2>)
+    UniquePtr( UniquePtr<T2>&& other ) : _ptr( other.release() ) {}
+    template <typename T2> requires (std::is_base_of_v<T,T2>)
+    UniquePtr<T>& operator=( UniquePtr<T2>&& other );
+private:
+    UniquePtr( T* ptr ) : _ptr( ptr ) {}
+
+    template<typename T2> requires (std::is_base_of_v<T,T2>)
+    UniquePtr( T2* ptr ) : _ptr( ptr ) {}
+    
+    template <typename T2>
+    friend class UniquePtr;
+public:
     T* operator->() noexcept {
-        return this->ptr;
+        return this->_ptr;
     }
     const T* operator->() const noexcept {
-        return this->ptr;
+        return this->_ptr;
     }
     
     T& operator*();
@@ -45,6 +56,8 @@ public:
 
     operator bool() const noexcept;
 public:
+    void reset() noexcept;
+
     T* release() noexcept;
 
     void swap( UniquePtr<T>& other ) noexcept;
@@ -52,7 +65,7 @@ public:
     bool operator==( T* const& other ) const noexcept;
     bool operator!=( T* const& other ) const noexcept;
 private:
-    T* ptr;
+    T* _ptr;
 };
 
 #include "UniquePtr.tpp"
