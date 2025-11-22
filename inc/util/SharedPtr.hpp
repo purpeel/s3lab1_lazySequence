@@ -64,15 +64,7 @@ private:
 public:
     SharedPtr() requires(!std::is_abstract_v<T>) : _ptr(new T()) , _controlBlock( new RefCount(1, 0) ) {} 
     
-    SharedPtr() requires(std::is_abstract_v<T>)  = delete;
-
-    template <typename ... Ts>
-    SharedPtr<T> makeShared(Ts&& ... args ) requires(!std::is_abstract_v<T>) {
-        return SharedPtr<T>( new T( std::forward(args)...));
-    }
-
-    template <typename ... Ts>
-    SharedPtr<T> makeShared(Ts&& ... args ) requires(std::is_abstract_v<T>) = delete;
+    SharedPtr() requires(std::is_abstract_v<T>) : _ptr(nullptr) , _controlBlock( new RefCount(1, 0) ) {} 
 
     SharedPtr( UniquePtr<T>&& other, RefCount* count ) : _ptr(other.release()), _controlBlock( count ) {}
     SharedPtr( UniquePtr<T>&& other ) : _ptr(other.release()), _controlBlock( new RefCount(1, 0)) {}
@@ -153,6 +145,14 @@ private:
 
     using weakType = WeakPtr<T>;
 };
+
+template <typename T, typename ... Ts>
+SharedPtr<T> makeShared(Ts&& ... args ) requires(!std::is_abstract_v<T>) {
+    return SharedPtr<T>( new T( std::forward<Ts>(args)...));
+}
+
+template <typename T, typename ... Ts>
+SharedPtr<T> makeShared(Ts&& ... args ) requires(std::is_abstract_v<T>) = delete;
 
 #include "SharedPtr.tpp"
 

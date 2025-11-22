@@ -73,7 +73,7 @@ void WeakPtr<T>::reset() noexcept {
     if (this->_controlBlock->weakRefs() == 0 && this->_controlBlock->hardRefs() == 0) {
         delete this->_controlBlock;
     }
-    this->_controlBlock = new RefCount(0, 1);
+    this->_controlBlock = new RefCount(1, 0);
 }
 
 template <typename T>
@@ -109,7 +109,7 @@ bool WeakPtr<T>::operator==( const SharedPtr<T>& other ) const noexcept {
 
 template <typename T>
 bool WeakPtr<T>::operator==( T* const& other ) const noexcept {
-    return **this->_ptr == other;
+    return this->_ptr == other;
 }
 
 template <typename T>
@@ -124,7 +124,7 @@ bool WeakPtr<T>::operator!=( const SharedPtr<T>& other ) const noexcept {
 
 template <typename T>
 bool WeakPtr<T>::operator!=( T* const& other ) const noexcept {
-    return **this->_ptr != other;
+    return this->_ptr != other;
 }
 
 template <typename T>
@@ -142,7 +142,7 @@ bool WeakPtr<T>::operator==( const SharedPtr<T2>& other ) const noexcept {
 template <typename T>
 template<typename T2> requires (std::is_base_of_v<T,T2>)
 bool WeakPtr<T>::operator==( T2* const& other ) const noexcept {
-    return **this->_ptr == other;
+    return this->_ptr == other;
 }
 
 template <typename T>
@@ -160,5 +160,5 @@ bool WeakPtr<T>::operator!=( const SharedPtr<T2>& other ) const noexcept {
 template <typename T>
 template<typename T2> requires (std::is_base_of_v<T,T2>)
 bool WeakPtr<T>::operator!=( T2* const& other ) const noexcept {
-    return **this->_ptr != other;
+    return this->_ptr != other;
 }

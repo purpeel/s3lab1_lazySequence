@@ -24,7 +24,11 @@ public:
         INVALID_SIZE = 9,
         EMPTY_OPTION = 10,
         NULL_DEREFERENCE = 11,
-        NULL_DEPENDENT_JUMP = 12
+        NULL_DEPENDENT_JUMP = 12,
+        INFINITE_CALCULATION = 13,
+        TRANSFINITE_ARITHMETIC = 14, 
+        DEMATERIALIZED_ACCESS = 15, 
+        UNKNOWN_ORDINALITY = 16
     };
 public:
     explicit Exception( std::exception& ex ) : ex(ex) {
@@ -80,6 +84,18 @@ public:
             break;
         case ErrorCode::NULL_DEPENDENT_JUMP:
             this->message = "Error. Attempt of using pointer arithmetic using null-pointer.";
+            break;
+        case ErrorCode::INFINITE_CALCULATION:
+            this->message = "Error. Attempt of calculating requires endless computing time.";
+            break;
+        case ErrorCode::TRANSFINITE_ARITHMETIC:
+            this->message = "Error. Specific transfinite arithmetic operation is undefined on provided input.";
+            break;
+        case ErrorCode::DEMATERIALIZED_ACCESS:
+            this->message = "Error. Attempt of accessing dematerialized part of Lazy Sequence.";
+            break;
+        case ErrorCode::UNKNOWN_ORDINALITY:
+            this->message = "Error. Unable to resolve transfinite indexing for this sequence.";
             break;
         default:
             this->message = "Unknown error.";

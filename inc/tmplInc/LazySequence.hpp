@@ -1,304 +1,383 @@
 #ifndef LAZY_SEQUENCE_H
 #define LAZY_SEQUENCE_H
 
-#include "Sequence.hpp"
+#include "ArraySequence.hpp"
 #include "UniquePtr.hpp"
 #include "WeakPtr.hpp"
-#include "Ordinal.hpp"
 #include "Option.hpp"
+#include "Ordinal.hpp"
+#include "Cardinal.hpp"
 #include <functional>
-#include <tuple>
-
 
 template <typename T>
 class LazySequence
 {
-protected:
-    LazySequence( SharedPtr<IGenerator> generator );
-public:
+private:
+    class IGenerator;
+    class FiniteGenerator;
+    class StandardGenerator;
+    class AppendGenerator;
+private:
     LazySequence();
-    LazySequence( const Sequence<T>& data );
 
-    LazySequence( const Sequence<T>& data, std::function<T(Sequence<T>)> producingFunc );
-    LazySequence( const Sequence<T>& data, T (*producingFunc)(Sequence<T>) );
-
+    LazySequence( const T& value );
+    LazySequence( const ArraySequence<T>& data );
+    LazySequence( const size_t arity, const std::function<T(ArraySequence<T>&)>& func, const ArraySequence<T>& data );
+    LazySequence( UniquePtr<IGenerator>&& generator, const Cardinal& size, const Option<Ordinal>& ordinality );
+public:
     LazySequence( const LazySequence<T>& other );
     LazySequence<T>& operator=( const LazySequence<T>& other );
 
-    virtual ~LazySequence() = default;
+    LazySequence( LazySequence<T>&& other );
+    LazySequence<T>& operator=( LazySequence<T>&& other );
+
+    ~LazySequence() = default;
 public:
-    using ordinal = Variant<size_t, Ordinal>;
-    T& getFirst();
+    static SharedPtr<LazySequence<T>> create();
+    static SharedPtr<LazySequence<T>> create( const T& value );
+    static SharedPtr<LazySequence<T>> create( const ArraySequence<T>& data );
+    static SharedPtr<LazySequence<T>> create( const size_t arity, const std::function<T(ArraySequence<T>&)>& producingFunc, const ArraySequence<T>& data );
+    static SharedPtr<LazySequence<T>> create( UniquePtr<IGenerator>&& generator, const Cardinal& size, const Option<Ordinal>& ordinality );
+public:
     const T& getFirst();
 
-    T& getLast();
     const T& getLast();
 
-    T& operator[]( ordinal index );
-    const T& operator[]( ordinal index ) const;
+    const T& operator[]( const Ordinal& index );
 public:
-    LazySequence<T>* append( const T& value );
-    LazySequence<T>* prepend( const T& value );
-    LazySequence<T>* insertAt( const T& value, ordinal index );
-    LazySequence<T>* insertAt( const LazySequence<T>& items, ordinal index );
+    SharedPtr<LazySequence<T>> append( const T& value );
+    SharedPtr<LazySequence<T>> append( const LazySequence<T>& value );
+    
+    SharedPtr<LazySequence<T>> prepend( const T& value );
+    SharedPtr<LazySequence<T>> prepend( const LazySequence<T>& value );
 
-    LazySequence<T>* skip( ordinal index );
-    LazySequence<T>* skip( ordinal start, ordinal end );
-    LazySequence<T>* skip( const LazySequence<ordinal>& indices );
+    SharedPtr<LazySequence<T>> insertAt( const T& value, const Ordinal& index );
+    SharedPtr<LazySequence<T>> insertAt( const LazySequence<T>& items, const Ordinal& index );
 
-    LazySequence<T>* getSubSequence( ordinal start, ordinal end );
-    LazySequence<T>* concat( const LazySequence<T>& other );
+    SharedPtr<LazySequence<T>> skip( const Ordinal& index );
+    SharedPtr<LazySequence<T>> skip( const Ordinal& start, const Ordinal& end );
+
+    SharedPtr<LazySequence<T>> getSubSequence( const Ordinal& start, const Ordinal& end );
+    SharedPtr<LazySequence<T>> concat( const LazySequence<T>& other );
 public:
     template <typename T2>
-    LazySequence<T2>* map( T2(*func)(T) );
+    SharedPtr<LazySequence<T2>> map( const std::function<T2(T)>& func );
 
-    LazySequence<T2>* where( bool(*func)(T) );
-
-    template <typename T2>
-    T2 foldl( T2(*func)(const T&, const T2&) );
-    template <typename T2>
-    T2 foldl( T2(*func)(const T&, const T2&), const T& base );
+    SharedPtr<LazySequence<T>> where( const std::function<bool(T)>& func );
 
     template <typename T2>
-    T2 foldr( T2(*func)(const T&, const T2&) );
+    T2 foldl( const std::function<T2(T)>& func, const T2& base );
     template <typename T2>
-    T2 foldr( T2(*func)(const T&, const T2&), const T& base );
+    T2 foldr( const std::function<T2(T)>& func, const T2& base );
 public:
     Cardinal getSize();
     size_t getMaterializedCount();
-    bool isEmpty();
-    bool isFinite();
+    bool isEmpty() const;
+    bool isFinite() const;
 private:
-    class IGenerator {
-    public:
-        virtual T getNext() = 0;
-        virtual bool hasNext() = 0;
-        virtual Option<T> tryGetNext() = 0;
-    public:
-        virtual IGenerator* append( const T& value ) = 0;
-        virtual IGenerator* prepend( const T& value ) = 0;
-        virtual IGenerator* insertAt( const T& value, ordinal index ) = 0;
-
-        virtual IGenerator* skip( ordinal index ) = 0;
-        virtual IGenerator* skip( ordinal start, ordinal end ) = 0;
-        virtual IGenerator* skip( const LazySequence<T>& indices ) = 0;
-
-        virtual IGenerator* getSubSequence( ordinal start, ordinal end ) = 0;
-        virtual IGenerator* concat( const LazySequence<T>& other ) = 0;
-    };
-
-    UniquePtr<Sequence<T>> _items;
-    UniquePtr<IGenerator> _generator;
-
     Cardinal _size;
-    Option<unsigned> generatorArity;
-private:
-    class StandardGenerator : IGenerator
+    Ordinal _offset;
+    Option<Ordinal> _ordinality; // maximum possible index (might be unable to resolve)
+ 
+    SharedPtr<IGenerator> _generator;
+    UniquePtr<ArraySequence<T>> _items;
+public:
+    class IGenerator
     {
     public:
-        StandardGenerator();
-
-        ~StandardGenerator();
-    public:
-        T getNext() override;
-        bool hasNext() override;
-        Option<T> tryGetNext() override;
-    public:
-        IGenerator* append( const T& value ) override;
-        IGenerator* prepend( const T& value ) override;
-        IGenerator* insertAt( const T& value, ordinal index ) override;
-
-        IGenerator* skip( ordinal index ) override;
-        IGenerator* skip( ordinal start, ordinal end ) override;
-        IGenerator* skip( const LazySequence<T>& indices ) override;
-
-        IGenerator* getSubSequence( ordinal start, ordinal end ) override;
-        IGenerator* concat( const LazySequence<T>& other ) override;
-    private:
-        WeakPtr<LazySequence<T>> _parent;
-        SharedPtr<Sequence<T>> _parentItems;
+        virtual ~IGenerator() = default;
+    
+        virtual T getNext() = 0;
+        virtual T get( const Ordinal& index ) = 0;
+        virtual bool hasNext() = 0;
+        Option<T> tryGetNext() = 0;
     };
 private:
-    class AppendGenerator : IGenerator 
+    class FiniteGenerator : IGenerator
     {
     public:
-        AppendGenerator() = delete;
-        
-        AppendGenerator( const T& value, SharedPtr<LazySequence<T>> parent );
-        
-        ~AppendGenerator();
+        FiniteGenerator();    
+
+        FiniteGenerator( const ArraySequence<T>& data );
+        FiniteGenerator( const T& value );
+
+        FiniteGenerator( const FiniteGenerator& other );
+        FiniteGenerator& operator=( const FiniteGenerator& other );
+
+        FiniteGenerator( FiniteGenerator&& other );
+        FiniteGenerator& operator=( FiniteGenerator&& other );
+
+        ~FiniteGenerator() = default;
     public:
         T getNext() override;
+        T get( const Ordinal& index ) override;
         bool hasNext() override;
         Option<T> tryGetNext() override;
-    public:
-        IGenerator* append( const T& value ) override;
-        IGenerator* prepend( const T& value ) override;
-        IGenerator* insertAt( const T& value, ordinal index ) override;
-
-        IGenerator* skip( ordinal index ) override;
-        IGenerator* skip( ordinal start, ordinal end ) override;
-        IGenerator* skip( const LazySequence<T>& indices ) override;
-
-        IGenerator* getSubSequence( ordinal start, ordinal end ) override;
-        IGenerator* concat( const LazySequence<T>& other ) override;
-    private:
-        WeakPtr<LazySequence<T>> _parent;
-        SharedPtr<Sequence<T>> _parentItems;
-        T _value;
-        ordinal _currentIndex;
-        ordinal _targetIndex;
+    private:   
+        Ordinal _lastMaterialized;
+        ArraySequence<T> _data;
     };
 private:
-    class PrependGenerator : IGenerator
+    class InfiniteGenerator : public IGenerator
     {
     public:
-        PrependGenerator() = delete;
+        InfiniteGenerator( const InfiniteGenerator& other );
+        InfiniteGenerator& operator=( const InfiniteGenerator& other );
+
+        InfiniteGenerator( InfiniteGenerator&& other );
+        InfiniteGenerator& operator=( InfiniteGenerator&& other );
+
+        InfiniteGenerator( const size_t arity, const std::function<T(ArraySequence<T>&)>& func, const ArraySequence<T>& data );
+
+        ~InfiniteGenerator() = default;
+    public:
+        T getNext() override;
+        T get( const Ordinal& index ) override;
+        bool hasNext() override;
+        Option<T> tryGetNext() override;
+    private:
+        size_t _arity;
+        Ordinal _lastMaterialized;
+        ArraySequence<T> _window;
+        std::function<T(ArraySequence<T>&)> _producingFunc;
+    };
+private:
+    class AppendGenerator : public IGenerator
+    {
+    public:
+        AppendGenerator( const T& value, SharedPtr<IGenerator> parent );
+        AppendGenerator( const LazySequence<T>& value, SharedPtr<IGenerator> parent );
         
-        PrependGenerator( const T& value, SharedPtr<LazySequence<T>> parent );
+        AppendGenerator( const AppendGenerator& other );
+        AppendGenerator& operator=( const AppendGenerator& other );
+        
+        AppendGenerator( AppendGenerator&& other );
+        AppendGenerator& operator=( AppendGenerator&& other );
+        
+        ~AppendGenerator() = default;
+    public:
+        T getNext() override;
+        T get( const Ordinal& index ) override;
+        bool hasNext();
+        Option<T> tryGetNext();
+    private:
+        Ordinal _lastMaterialized;
+        SharedPtr<IGenerator> _initial;
+        SharedPtr<IGenerator> _added;
+    };
+private:
+    class PrependGenerator : public IGenerator
+    {
+    public:
+        PrependGenerator( const T& value, SharedPtr<IGenerator> parent );
+        PrependGenerator( const LazySequence<T>& value, SharedPtr<IGenerator> parent );
+        
+        PrependGenerator( const PrependGenerator& other );
+        PrependGenerator& operator=( const PrependGenerator& other );
+        
+        PrependGenerator( PrependGenerator&& other );
+        PrependGenerator& operator=( PrependGenerator&& other );
         
         ~PrependGenerator();
     public:
         T getNext() override;
-        bool hasNext() override;
-        Option<T> tryGetNext() override;
-    public:
-        IGenerator* append( const T& value ) override;
-        IGenerator* prepend( const T& value ) override;
-        IGenerator* insertAt( const T& value, ordinal index ) override;
-
-        IGenerator* skip( ordinal index ) override;
-        IGenerator* skip( ordinal start, ordinal end ) override;
-        IGenerator* skip( SharedPtr<LazySequence<T>> indices ) override;
-
-        IGenerator* getSubSequence( ordinal start, ordinal end ) override;
-        IGenerator* concat( SharedPtr<LazySequence<T>> other ) override;
+        T get( const Ordinal& index ) override;
+        bool hasNext();
+        Option<T> tryGetNext();    
     private:
-        WeakPtr<LazySequence<T>> _parent;
-        SharedPtr<Sequence<T>> _parentItems;
-        T _value;
-        ordinal _currentIndex;
-        ordinal _targetIndex;
+        Ordinal _lastMaterialized;
+        SharedPtr<IGenerator> _initial;
+        SharedPtr<IGenerator> _added;
     };
 private:
-    class InsertGenerator : IGenerator 
+    class InsertGenerator : public IGenerator
     {
     public:
-        InsertGenerator() = delete;
-
-        InsertGenerator( const T& value, ordinal index, SharedPtr<LazySequence<T>> parent );
-        InsertGenerator( const LazySequence<T>& items, ordinal index, SharedPtr<LazySequence<T>> parent );
-
-        ~PrependGenerator();
+        InsertGenerator( const T& value, const Ordinal& index, SharedPtr<IGenerator> parent );
+        InsertGenerator( const LazySequence<T>& value, const Ordinal& index, SharedPtr<IGenerator> parent );
+        
+        InsertGenerator( const InsertGenerator& other );
+        InsertGenerator& operator=( const InsertGenerator& other );
+        
+        InsertGenerator( InsertGenerator&& other );
+        InsertGenerator& operator=( InsertGenerator&& other );
+        
+        ~InsertGenerator();
     public:
-        IGenerator* append( const T& value ) override;
-        IGenerator* prepend( const T& value ) override;
-        IGenerator* insertAt( const T& value, ordinal index ) override;
-
-        IGenerator* skip( ordinal index ) override;
-        IGenerator* skip( ordinal start, ordinal end ) override;
-        IGenerator* skip( SharedPtr<LazySequence<T>> indices ) override;
-
-        IGenerator* getSubSequence( ordinal start, ordinal end ) override;
-        IGenerator* concat( SharedPtr<LazySequence<T>> other ) override;
+        T getNext() override;
+        T get( const Ordinal& index ) override;
+        bool hasNext();
+        Option<T> tryGetNext();
     private:
-        WeakPtr<LazySequence<T>> _parent;
-        SharedPtr<Sequence<T>> _parentItems;
-
-        Option<T> _value;
-        Option<SharedPtr<LazySequence<T>>> _items;
-
-        ordinal _currentIndex;
-        ordinal _targetIndex;
+        Ordinal _lastMaterialized;
+        Ordinal _targetIndex;
+        SharedPtr<IGenerator> _initial;
+        SharedPtr<IGenerator> _added;
     };
 private:
-    class SkipGenerator : IGenerator 
+    class SkipGenerator : public IGenerator
     {
     public:
         SkipGenerator() = delete;
 
-        SkipGenerator( ordinal index, SharedPtr<LazySequence<T>> parent );
-        SkipGenerator( ordinal start, ordinal end, SharedPtr<LazySequence<T>> parent );
-        SkipGenerator( const LazySequence<T>& indices, SharedPtr<LazySequence<T>> parent );
+        SkipGenerator( const Ordinal& index, SharedPtr<IGenerator> parent );
+        SkipGenerator( const Ordinal& start, const Ordinal& end, SharedPtr<IGenerator> parent );
+        
+        SkipGenerator( const SkipGenerator& other );
+        SkipGenerator& operator=( const SkipGenerator& other );
+        
+        SkipGenerator( SkipGenerator&& other );
+        SkipGenerator& operator=( SkipGenerator&& other );
 
         ~SkipGenerator();
     public:
-        IGenerator* append( const T& value ) override;
-        IGenerator* prepend( const T& value ) override;
-        IGenerator* insertAt( const T& value, ordinal index ) override;
-
-        IGenerator* skip( ordinal index ) override;
-        IGenerator* skip( ordinal start, ordinal end ) override;
-        IGenerator* skip( SharedPtr<LazySequence<T>> indices ) override;
-
-        IGenerator* getSubSequence( ordinal start, ordinal end ) override;
-        IGenerator* concat( SharedPtr<LazySequence<T>> other ) override;
+        T getNext() override;
+        T get( const Ordinal& index ) override;
+        bool hasNext();
+        Option<T> tryGetNext();        
     private:
-        WeakPtr<LazySequence<T>> _parent;
-        SharedPtr<Sequence<T>> _parentItems;
+        Ordinal _lastMaterialized;
+        Option<Ordinal> _from;
+        Option<Ordinal> _to;
+        SharedPtr<IGenerator> _parent;
 
-        Option<ordinal> _from;
-        Option<ordinal> _to;
-        Option<SharedPtr<LazySequence<T>>> _indices;
     };
 private:
-    class SubSequenceGenerator : IGenerator 
+    class SubSequenceGenerator : public IGenerator
     {
     public:
-        SubSequenceGenerator() = delete;
+        SubSequenceGenerator( const Ordinal& start, const Ordinal& end, SharedPtr<IGenerator> parent );
 
-        SubSequenceGenerator( ordinal index, SharedPtr<LazySequence<T>> parent );
-        SubSequenceGenerator( ordinal start, ordinal end, SharedPtr<LazySequence<T>> parent );
-        SubSequenceGenerator( const LazySequence<T>& indices, SharedPtr<LazySequence<T>> parent );
+        SubSequenceGenerator( const SubSequenceGenerator& other );
+        SubSequenceGenerator& operator=( const SubSequenceGenerator& other );
+        
+        SubSequenceGenerator( SubSequenceGenerator&& other );
+        SubSequenceGenerator& operator=( SubSequenceGenerator&& other );
         
         ~SubSequenceGenerator();
     public:
-        IGenerator* append( const T& value ) override;
-        IGenerator* prepend( const T& value ) override;
-        IGenerator* insertAt( const T& value, ordinal index ) override;
-
-        IGenerator* skip( ordinal index ) override;
-        IGenerator* skip( ordinal start, ordinal end ) override;
-        IGenerator* skip( SharedPtr<LazySequence<T>> indices ) override;
-
-        IGenerator* getSubSequence( ordinal start, ordinal end ) override;
-        IGenerator* concat( SharedPtr<LazySequence<T>> other ) override;
+        T getNext() override;
+        T get( const Ordinal& index ) override;
+        bool hasNext();
+        Option<T> tryGetNext();
     private:
-        WeakPtr<LazySequence<T>> _parent;
-        SharedPtr<Sequence<T>> _parentItems;
-
-        Option<ordinal> _from;
-        Option<ordinal> _to;
-        Option<SharedPtr<LazySequence<T>>> _indices;
+        Ordinal _lastMaterialized;
+        Ordinal _from;
+        Ordinal _to;
+        SharedPtr<IGenerator> _parent;
     };
 private:
-    class ConcatGenerator : IGenerator 
+    class ConcatGenerator : public IGenerator
     {
     public:
-        ConcatGenerator() = delete;
-
-        ConcatGenerator( const LazySequence<T>& items, SharedPtr<LazySequence<T>> parent );
+        ConcatGenerator( SharedPtr<IGenerator> first, SharedPtr<IGenerator> second );
         
+        ConcatGenerator( const ConcatGenerator& other );
+        ConcatGenerator& operator=( const ConcatGenerator& other );
+        
+        ConcatGenerator( ConcatGenerator&& other );
+        ConcatGenerator& operator=( ConcatGenerator&& other );
+
         ~ConcatGenerator();
     public:
-        IGenerator* append( const T& value ) override;
-        IGenerator* prepend( const T& value ) override;
-        IGenerator* insertAt( const T& value, ordinal index ) override;
-
-        IGenerator* skip( ordinal index ) override;
-        IGenerator* skip( ordinal start, ordinal end ) override;
-        IGenerator* skip( SharedPtr<LazySequence<T>> indices ) override;
-
-        IGenerator* getSubSequence( ordinal start, ordinal end ) override;
-        IGenerator* concat( SharedPtr<LazySequence<T>> other ) override;
+        T getNext() override;
+        T get( const Ordinal& index ) override;
+        bool hasNext();
+        Option<T> tryGetNext();   
     private:
-        WeakPtr<LazySequence<T>> _parent;
-        SharedPtr<Sequence<T>> _parentItems;
-
-        Option<SharedPtr<LazySequence<T>>> _items;
+        SharedPtr<IGenerator> _first;
+        SharedPtr<IGenerator> _second;
     };
+private:
+    template <typename T2>
+    class MapGenerator : public IGenerator 
+    {
+    public:
+        MapGenerator( const std::function<T2(T)> func, SharedPtr<IGenerator> parent );
+        
+        MapGenerator( const MapGenerator& other );
+        MapGenerator& operator=( const MapGenerator& other );
+        
+        MapGenerator( MapGenerator&& other );
+        MapGenerator& operator=( MapGenerator&& other );
+
+        ~MapGenerator();
+    public:
+        T2 getNext() override;
+        T2 get( const Ordinal& index ) override;
+        bool hasNext();
+        Option<T> tryGetNext();   
+    private:
+        std::function<T2(T)> func;
+        SharedPtr<IGenerator> _parent;
+    };
+private:
+    class WhereGenerator : IGenerator 
+    {
+    public:
+        WhereGenerator( const std::function<bool(T)> func, SharedPtr<IGenerator> parent );
+        
+        WhereGenerator( const WhereGenerator& other );
+        WhereGenerator& operator=( const WhereGenerator& other );
+        
+        WhereGenerator( WhereGenerator&& other );
+        WhereGenerator& operator=( WhereGenerator&& other );
+
+        ~WhereGenerator();
+    public:
+        T getNext() override;
+        T get( const Ordinal& index ) override;
+        bool hasNext();
+        Option<T> tryGetNext();   
+    private:
+        std::function<bool(T)> func;
+        SharedPtr<IGenerator> _parent;
+    }
+private:
+//     class LazySequenceIterator
+//     {
+//     public:
+//         using iterator_category = std::forward_iterator_tag;
+//         using difference_type   = std::ptrdiff_t;
+//         using value_type = T;
+//         using pointer    = T*;
+//         using reference  = T&;
+//     public:
+//         LazySequenceIterator();
+
+//         LazySequenceIterator( SharedPtr<IGenerator> generator, const Ordinal& pos );
+
+//         LazySequenceIterator( const LazySequenceIterator& other );
+//         LazySequenceIterator& operator=( const LazySequenceIterator& other );
+
+//         LazySequenceIterator( LazySequenceIterator&& other );
+//         LazySequenceIterator& operator=( LazySequenceIterator&& other );
+//     public:
+//         LazySequenceIterator& operator++();
+//         LazySequenceIterator operator++(int);
+
+//         T& operator*();
+//         const T& operator*() const;
+        
+//         T* operator->();
+//         const T* operator->() const;
+
+//         bool operator==( const LazySequenceIterator& other ) const noexcept;
+//         bool operator!=( const LazySequenceIterator& other ) const noexcept;
+//     private:
+//         SharedPtr<IGenerator> _observed;
+//         Ordinal _pos;
+//     };
+// public: 
+//     LazySequenceIterator begin();
+//     LazySequenceIterator end();
+
+//     const LazySequenceIterator begin() const;
+//     const LazySequenceIterator end() const;
 };
 
 #include "LazySequence.tpp"
+#include "Generator.tpp"
+#include "LazySequenceIterator.tpp"
 
 #endif // LAZY_SEQUENCE_H

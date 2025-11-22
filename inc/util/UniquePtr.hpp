@@ -13,14 +13,6 @@ public:
     
     UniquePtr() requires (std::is_abstract_v<T>) = delete;
 
-    template <typename ... Ts>
-    UniquePtr<T> makeUnique( Ts&& ... args ) requires (!std::is_abstract_v<T>) {
-        return UniquePtr<T>( new T(std::forward(args)...));
-    }
-
-    template <typename ... Ts>
-    UniquePtr<T> makeUnique( Ts&& ... args ) requires (std::is_abstract_v<T>) = delete;
-
     UniquePtr( const UniquePtr<T>& other ) = delete;
     UniquePtr<T>& operator=( const UniquePtr<T>& other ) = delete;
 
@@ -67,6 +59,15 @@ public:
 private:
     T* _ptr;
 };
+
+
+template <typename T, typename ... Ts>
+static UniquePtr<T> makeUnique( Ts&& ... args ) requires (!std::is_abstract_v<T>) {
+    return UniquePtr<T>( new T(std::forward<Ts>(args)...));
+}
+
+template <typename T, typename ... Ts>
+static UniquePtr<T> makeUnique( Ts&& ... args ) requires (std::is_abstract_v<T>) = delete;
 
 #include "UniquePtr.tpp"
 
