@@ -145,8 +145,8 @@ private:
     class AppendGenerator : public IGenerator
     {
     public:
-        AppendGenerator( const T& value, SharedPtr<IGenerator> parent );
-        AppendGenerator( const LazySequence<T>& value, SharedPtr<IGenerator> parent );
+        AppendGenerator( const T& value, SharedPtr<IGenerator> parent, const Ordinal& border );
+        AppendGenerator( const LazySequence<T>& value, SharedPtr<IGenerator> parent, const Ordinal& border );
         
         AppendGenerator( const AppendGenerator& other );
         AppendGenerator& operator=( const AppendGenerator& other );
@@ -162,6 +162,7 @@ private:
         Option<T> tryGetNext();
     private:
         Ordinal _lastMaterialized;
+        Ordinal _border;
         SharedPtr<IGenerator> _initial;
         SharedPtr<IGenerator> _added;
     };
@@ -169,8 +170,8 @@ private:
     class PrependGenerator : public IGenerator
     {
     public:
-        PrependGenerator( const T& value, SharedPtr<IGenerator> parent );
-        PrependGenerator( const LazySequence<T>& value, SharedPtr<IGenerator> parent );
+        PrependGenerator( const T& value, SharedPtr<IGenerator> parent, const Ordinal& border );
+        PrependGenerator( const LazySequence<T>& value, SharedPtr<IGenerator> parent, const Ordinal& border );
         
         PrependGenerator( const PrependGenerator& other );
         PrependGenerator& operator=( const PrependGenerator& other );
@@ -178,7 +179,7 @@ private:
         PrependGenerator( PrependGenerator&& other );
         PrependGenerator& operator=( PrependGenerator&& other );
         
-        ~PrependGenerator();
+        ~PrependGenerator() = default;
     public:
         T getNext() override;
         T get( const Ordinal& index ) override;
@@ -186,6 +187,7 @@ private:
         Option<T> tryGetNext();    
     private:
         Ordinal _lastMaterialized;
+        Ordinal _border;
         SharedPtr<IGenerator> _initial;
         SharedPtr<IGenerator> _added;
     };
@@ -193,8 +195,8 @@ private:
     class InsertGenerator : public IGenerator
     {
     public:
-        InsertGenerator( const T& value, const Ordinal& index, SharedPtr<IGenerator> parent );
-        InsertGenerator( const LazySequence<T>& value, const Ordinal& index, SharedPtr<IGenerator> parent );
+        InsertGenerator( const T& value, const Ordinal& index, SharedPtr<IGenerator> parent, const Ordinal& addedOrdinality );
+        InsertGenerator( const LazySequence<T>& value, const Ordinal& index, SharedPtr<IGenerator> parent, const Ordinal& addedOrdinality );
         
         InsertGenerator( const InsertGenerator& other );
         InsertGenerator& operator=( const InsertGenerator& other );
@@ -202,7 +204,7 @@ private:
         InsertGenerator( InsertGenerator&& other );
         InsertGenerator& operator=( InsertGenerator&& other );
         
-        ~InsertGenerator();
+        ~InsertGenerator() = default;
     public:
         T getNext() override;
         T get( const Ordinal& index ) override;
@@ -211,6 +213,7 @@ private:
     private:
         Ordinal _lastMaterialized;
         Ordinal _targetIndex;
+        Ordinal _border;
         SharedPtr<IGenerator> _initial;
         SharedPtr<IGenerator> _added;
     };
@@ -218,8 +221,6 @@ private:
     class SkipGenerator : public IGenerator
     {
     public:
-        SkipGenerator() = delete;
-
         SkipGenerator( const Ordinal& index, SharedPtr<IGenerator> parent );
         SkipGenerator( const Ordinal& start, const Ordinal& end, SharedPtr<IGenerator> parent );
         
@@ -229,7 +230,7 @@ private:
         SkipGenerator( SkipGenerator&& other );
         SkipGenerator& operator=( SkipGenerator&& other );
 
-        ~SkipGenerator();
+        ~SkipGenerator() = default;
     public:
         T getNext() override;
         T get( const Ordinal& index ) override;
@@ -237,10 +238,9 @@ private:
         Option<T> tryGetNext();        
     private:
         Ordinal _lastMaterialized;
-        Option<Ordinal> _from;
-        Option<Ordinal> _to;
+        Ordinal _from;
+        Ordinal _to;
         SharedPtr<IGenerator> _parent;
-
     };
 private:
     class SubSequenceGenerator : public IGenerator
@@ -254,7 +254,7 @@ private:
         SubSequenceGenerator( SubSequenceGenerator&& other );
         SubSequenceGenerator& operator=( SubSequenceGenerator&& other );
         
-        ~SubSequenceGenerator();
+        ~SubSequenceGenerator() = default;
     public:
         T getNext() override;
         T get( const Ordinal& index ) override;
@@ -270,7 +270,7 @@ private:
     class ConcatGenerator : public IGenerator
     {
     public:
-        ConcatGenerator( SharedPtr<IGenerator> first, SharedPtr<IGenerator> second );
+        ConcatGenerator( SharedPtr<IGenerator> first, SharedPtr<IGenerator> second, const Ordinal& border );
         
         ConcatGenerator( const ConcatGenerator& other );
         ConcatGenerator& operator=( const ConcatGenerator& other );
@@ -285,6 +285,7 @@ private:
         bool hasNext();
         Option<T> tryGetNext();   
     private:
+        Ordinal _border;
         SharedPtr<IGenerator> _first;
         SharedPtr<IGenerator> _second;
     };

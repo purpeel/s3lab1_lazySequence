@@ -196,19 +196,19 @@ bool LazySequence<T>::isFinite() const {
 
 template <typename T>
 SharedPtr<LazySequence<T>> LazySequence<T>::append( const T& value ) {
-    auto gen = makeUnique<AppendGenerator>( value, _generator );
     Option<Ordinal> newOrd = _ordinality.hasValue() 
-            ? Option<Ordinal>( _ordinality.get() + 1) 
-            : Option<Ordinal>();
+    ? Option<Ordinal>( _ordinality.get() + 1) 
+    : Option<Ordinal>();
+    auto gen = makeUnique<AppendGenerator>( value, _generator );
     return create( std::move(gen), _size + 1, newOrd );
 }
 
 template <typename T>
 SharedPtr<LazySequence<T>> LazySequence<T>::append( const LazySequence<T>& value ) {
-    auto gen = makeUnique<AppendGenerator>( value, _generator );
     Option<Ordinal> newOrd = _ordinality.hasValue() && value._ordinality.hasValue() 
-            ? Option<Ordinal>(_ordinality.get() + value._ordinality.get()) 
-            : Option<Ordinal>();
+    ? Option<Ordinal>(_ordinality.get() + value._ordinality.get()) 
+    : Option<Ordinal>(); //TODO change passed ordinality to optional type; throw exceptions in get() when .hasValue() == false;
+    auto gen = makeUnique<AppendGenerator>( value, _generator );
     return create( std::move(gen), _size + value.getSize(), newOrd );
 }
 
@@ -262,8 +262,8 @@ SharedPtr<LazySequence<T>> LazySequence<T>::insertAt( const LazySequence<T>& val
         }
         if (index == 0) { return prepend( value ); } 
         else if (index == _ordinality.get()) { return append( value ); } 
-        else {
-            auto gen = makeUnique<InsertGenerator>( value, index, _generator );
+        else { //TODO pass correct ordinality to all constuctors that require it
+            auto gen = makeUnique<InsertGenerator>( value, index, _generator,  );
             Option<Ordinal> newOrd = value._ordinality.hasValue() 
                 ? Option<Ordinal>(value._ordinality.get() + _ordinality.get()) 
                 : Option<Ordinal>();
