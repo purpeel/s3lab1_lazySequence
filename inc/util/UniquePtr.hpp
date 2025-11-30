@@ -35,6 +35,10 @@ private:
     
     template <typename T2>
     friend class UniquePtr;
+    template <typename T2, typename ... Ts>
+    friend UniquePtr<T2> makeUnique( Ts&& ... args ) requires (!std::is_abstract_v<T2>);
+    template <typename T2, typename ... Ts>
+    friend UniquePtr<T2> makeUnique( Ts&& ... args ) requires (!std::is_abstract_v<T2>);
 public:
     T* operator->() noexcept {
         return this->_ptr;

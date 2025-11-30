@@ -1,7 +1,6 @@
 #ifndef ORDINAL_H
 #define ORDINAL_H
 
-#include "UniquePtr.hpp"
 #include "DynamicArray.hpp"
 #include "Variant.hpp"
 
@@ -66,7 +65,11 @@ public:
 public:
     explicit operator size_t() const {
         if (this->isFinite()) {
-            return static_cast<size_t>(this->_value.getT1());
+            if (this->_value.isInstanceOfT1()) {
+                return static_cast<size_t>(this->_value.getT1());
+            } else {
+                return this->_value.getT2()[0]._coefficient;
+            }
         } else {
             throw Exception( Exception::ErrorCode::INVALID_TYPE );
         }
@@ -99,7 +102,7 @@ public:
             return this->_value == other._value;
         } else if (this->isTransfinite() != other.isTransfinite()) {
             return false;
-        } else if (this->isTransfinite() && this->isTransfinite()) {
+        } else {
             auto thisTerms  = this->_value.getT2();
             auto otherTerms = other._value.getT2();
             for ( int i = 0; i < thisTerms.getSize() < otherTerms.getSize() ? thisTerms.getSize() : otherTerms.getSize(); i++ ) {
@@ -149,21 +152,21 @@ public:
     bool operator>( const size_t& other ) const {
         if (this->isFinite()) {
             return this->_value > other;
-        } else if (this->isTransfinite()) {
+        } else {
             return true;
         }
     }
     bool operator==( const size_t& other ) const {
         if (this->isFinite()) {
             return this->_value == other;
-        } else if (this->isTransfinite()) {
+        } else  {
             return false;
         }
     }
     bool operator<( const size_t& other ) const {
         if (this->isFinite()) {
             return this->_value < other;
-        } else if (this->isTransfinite()) {
+        } else  {
             return false;
         }
     }
@@ -235,7 +238,7 @@ public:
     Ordinal operator+( const size_t& other ) const { 
         if (this->isFinite()) {
             return Ordinal(this->_value + other);
-        } else if (this->isTransfinite()) {
+        } else {
             auto terms = this->_value.getT2();
             if ( terms[terms.getSize() - 1]._exponent != 0) {
                 terms.append( Term(other, 0) );
@@ -245,21 +248,21 @@ public:
             return Ordinal(terms);
         }
     }
-    Ordinal operator+( const Cardinal& other ) const { 
-        if (other.isTransfinite()) {
-            throw Exception( Exception::ErrorCode::INVALID_TYPE );
-        } else if (this->isTransfinite() && other.isFinite()) {
-            auto terms = this->_value.getT2();
-            if ( terms[terms.getSize() - 1]._exponent != 0) {
-                terms.append( Term(static_cast<size_t>(other), 0) );
-            } else {
-                terms[terms.getSize() - 1]._coefficient += static_cast<size_t>(other);
-            }
-            return Ordinal(terms);
-        } else if (this->isFinite() && other.isFinite()) {
-            return Ordinal( static_cast<size_t>(*this) + static_cast<size_t>(other) );
-        }
-    }
+    // Ordinal operator+( const Cardinal& other ) const { 
+    //     if (other.isTransfinite()) {
+    //         throw Exception( Exception::ErrorCode::INVALID_TYPE );
+    //     } else if (this->isTransfinite() && other.isFinite()) {
+    //         auto terms = this->_value.getT2();
+    //         if ( terms[terms.getSize() - 1]._exponent != 0) {
+    //             terms.append( Term(static_cast<size_t>(other), 0) );
+    //         } else {
+    //             terms[terms.getSize() - 1]._coefficient += static_cast<size_t>(other);
+    //         }
+    //         return Ordinal(terms);
+    //     } else if (this->isFinite() && other.isFinite()) {
+    //         return Ordinal( static_cast<size_t>(*this) + static_cast<size_t>(other) );
+    //     }
+    // }
 
     Ordinal operator*( const Ordinal& other ) const { 
         if (this->isFinite() && other.isFinite()) {
@@ -305,7 +308,7 @@ public:
     Ordinal operator*( const size_t& other ) const { 
         if (this->isFinite()) {
             return Ordinal(this->_value * other);
-        } else if (this->isTransfinite()) {
+        } else {
             auto terms = this->_value.getT2();
             terms.map( [other](const Term& x ) -> Term
                      { 
@@ -316,7 +319,7 @@ public:
         }
     }
 
-    Ordinal operator-( const Ordinal& other ) {
+    Ordinal operator-( const Ordinal& other ) const {
         if (this->isTransfinite() && other.isFinite()) {
             return *this;
         } else if (this->isTransfinite() && other.isTransfinite() && (*this >= other)) {
@@ -343,6 +346,9 @@ public:
                     throw Exception( Exception::ErrorCode::TRANSFINITE_ARITHMETIC );
                 }
             }
+            // if (terms1.getSize() == 1 && terms1[0]._exponent == 0) {
+            //     return Ordinal(terms1[0]._coefficient);
+            // }
             return Ordinal(terms1);
         } else if (this->isFinite() && other.isFinite() && (*this >= other)) {
             return Ordinal( this->_value.getT1() - other._value.getT1() );
@@ -350,7 +356,7 @@ public:
             throw Exception( Exception::ErrorCode::TRANSFINITE_ARITHMETIC );
         }
     }
-    Ordinal operator-( const size_t& other ) {
+    Ordinal operator-( const size_t& other ) const {
         if (this->isTransfinite()) {
             auto terms = this->_value.getT2();
             auto tail = terms[terms.getSize() - 1];
@@ -366,20 +372,19 @@ public:
             }
         }
     }
-    Ordinal operator-( const Cardinal& other ) {
-        if (this->isTransfinite() || other.isTransfinite()) {
-            throw Exception( Exception::ErrorCode::INVALID_TYPE ); 
-        } else if (static_cast<size_t>(other) > static_cast<size_t>(*this)) {
-            throw Exception( Exception::ErrorCode::TRANSFINITE_ARITHMETIC );
-        } else {
-            return Ordinal(this->_value.getT1() - static_cast<size_t>(other));
-        }
-    }
-
+    // Ordinal operator-( const Cardinal& other ) const {
+    //     if (this->isTransfinite() || other.isTransfinite()) {
+    //         throw Exception( Exception::ErrorCode::INVALID_TYPE ); 
+    //     } else if (static_cast<size_t>(other) > static_cast<size_t>(*this)) {
+    //         throw Exception( Exception::ErrorCode::TRANSFINITE_ARITHMETIC );
+    //     } else {
+    //         return Ordinal(this->_value.getT1() - static_cast<size_t>(other));
+    //     }
+    // }
 public:
     bool isFinite() const {
         return this->_value.isInstanceOfT1()  // finite
-            || this->_value.isInstanceOfT2()  // array with one 0-exp term
+            || this->_value.isInstanceOfT2()  // array of size 1 with term which exponent equals 0
             && this->_value.getT2()[0]._exponent == 0 
             && this->_value.getT2().getSize() == 1;
     }
@@ -410,6 +415,42 @@ inline Ordinal operator*( const size_t& arg1, const Ordinal& arg2 ) {
     } else {
         return Ordinal(arg1) + arg2;
     }
+}
+
+inline bool operator<( const size_t& arg1, const Ordinal& arg2 ) {
+    if (arg2.isTransfinite()) {
+        return true;
+    } else {
+        return arg1 < static_cast<size_t>(arg2);
+    }
+}
+
+inline bool operator>( const size_t& arg1, const Ordinal& arg2 ) {
+    if (arg2.isTransfinite()) {
+        return false;
+    } else {
+        return arg1 > static_cast<size_t>(arg2);
+    }
+}
+
+inline bool operator==( const size_t& arg1, const Ordinal& arg2 ) {
+    if (arg2.isTransfinite()) {
+        return false;
+    } else {
+        return arg1 == static_cast<size_t>(arg2);
+    }
+}
+
+inline bool operator>=( const size_t& arg1, const Ordinal& arg2 ) {
+    return arg1 > arg2 || arg1 == arg2;
+}
+
+inline bool operator<=( const size_t& arg1, const Ordinal& arg2 ) {
+    return arg1 < arg2 || arg1 == arg2;
+}
+
+inline bool operator!=( const size_t& arg1, const Ordinal& arg2 ) {
+    return !(arg1 == arg2);
 }
 
 #endif // ORDINAL_H

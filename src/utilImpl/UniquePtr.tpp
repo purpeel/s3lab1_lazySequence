@@ -1,4 +1,3 @@
-//можно использовать команды препроцессора дл€ защиты от повторной компил€ции тпп
 template <typename T>
 UniquePtr<T>& UniquePtr<T>::operator=( UniquePtr<T>&& other ) {
     if (this != &other ) {

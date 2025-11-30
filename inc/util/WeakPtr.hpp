@@ -9,7 +9,9 @@ struct RefCount;
 template <class T>
 class WeakPtr 
 {
-public:
+public: 
+    WeakPtr() : _ptr( nullptr ), _controlBlock( new RefCount(0, 0) ) {}
+
     WeakPtr( const WeakPtr<T>& other );
     WeakPtr& operator=( const WeakPtr<T>& other );
 
@@ -41,6 +43,10 @@ public:
     void swap( WeakPtr<T>& other ) noexcept;
 
     operator bool() const noexcept;
+
+    bool isExpired() { 
+        return !this->_ptr;
+    }
 public:
     bool operator==( const WeakPtr<T>& other ) const noexcept;
     bool operator==( const SharedPtr<T>& other ) const noexcept;

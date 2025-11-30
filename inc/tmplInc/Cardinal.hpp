@@ -122,15 +122,15 @@ public:
             return *this;
         }
     }
-    Cardinal operator+( const Ordinal& other ) const {
-        if (this->isFinite() && other.isFinite()) {
-            return Cardinal( this->_value.getT1() + static_cast<size_t>(other) );
-        } else if (this->isTransfinite() && other.isFinite()) {
-            return *this;
-        } else {
-            throw Exception( Exception::ErrorCode::INVALID_TYPE );
-        }
-    }   
+    // Cardinal operator+( const Ordinal& other ) const {
+    //     if (this->isFinite() && other.isFinite()) {
+    //         return Cardinal( this->_value.getT1() + static_cast<size_t>(other) );
+    //     } else if (this->isTransfinite() && other.isFinite()) {
+    //         return *this;
+    //     } else {
+    //         throw Exception( Exception::ErrorCode::INVALID_TYPE );
+    //     }
+    // }   
 
     Cardinal operator-( const Cardinal& other ) {
         if (this->isTransfinite() || other.isTransfinite()) {
@@ -147,15 +147,15 @@ public:
             return Cardinal(this->_value.getT1() - static_cast<size_t>(other));
         }
     }
-    size_t operator-( const Ordinal& other ) {
-        if (this->isTransfinite() || other.isTransfinite()) {
-            throw Exception( Exception::ErrorCode::INVALID_TYPE ); 
-        } else if (static_cast<size_t>(other) > static_cast<size_t>(*this)) {
-            throw Exception( Exception::ErrorCode::TRANSFINITE_ARITHMETIC );
-        } else {
-            return this->_value.getT1() - static_cast<size_t>(other);
-        }
-    }
+    // size_t operator-( const Ordinal& other ) {
+    //     if (this->isTransfinite() || other.isTransfinite()) {
+    //         throw Exception( Exception::ErrorCode::INVALID_TYPE ); 
+    //     } else if (static_cast<size_t>(other) > static_cast<size_t>(*this)) {
+    //         throw Exception( Exception::ErrorCode::TRANSFINITE_ARITHMETIC );
+    //     } else {
+    //         return this->_value.getT1() - static_cast<size_t>(other);
+    //     }
+    // }
     Cardinal operator-( const size_t& other ) {
         if (this->isTransfinite()) {
             return *this;
@@ -179,15 +179,15 @@ public:
             return *this;
         }
     }
-    Cardinal operator*( const Ordinal& other ) const {
-        if (this->isFinite() && other.isFinite()) {
-            return Cardinal( this->_value.getT1() * static_cast<size_t>(other) );
-        } else if (this->isTransfinite() && other.isFinite()) {
-            return *this;
-        } else {
-            throw Exception( Exception::ErrorCode::INVALID_TYPE );
-        }
-    }   
+    // Cardinal operator*( const Ordinal& other ) const {
+    //     if (this->isFinite() && other.isFinite()) {
+    //         return Cardinal( this->_value.getT1() * static_cast<size_t>(other) );
+    //     } else if (this->isTransfinite() && other.isFinite()) {
+    //         return *this;
+    //     } else {
+    //         throw Exception( Exception::ErrorCode::INVALID_TYPE );
+    //     }
+    // }   
 private:
     Variant<finite, transfinite> _value;
 };

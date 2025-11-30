@@ -6,6 +6,11 @@ WeakPtr<T>::WeakPtr( const WeakPtr<T>& other ) : _ptr(other._ptr) {
 
 template <typename T>
 WeakPtr<T>& WeakPtr<T>::operator=( const WeakPtr<T>& other ) {
+    auto cb = *this->_controlBlock;
+    if (cb->hasWeakRefs()) {
+        cb->decreaseWeakRefs();
+        if (!cb.hasWeakRefs() && !cb.hasHardRefs()) { delete this->_controlBlock; }
+    }
     this->_ptr = other._ptr;
     this->_controlBlock = other._controlBlock;
     this->_controlBlock->increaseWeakRefs();
@@ -20,6 +25,11 @@ WeakPtr<T>::WeakPtr( const SharedPtr<T>& other ) : _ptr(other._ptr) {
 
 template <typename T>
 WeakPtr<T>& WeakPtr<T>::operator=( const SharedPtr<T>& other ) {
+    auto cb = *this->_controlBlock;
+    if (cb->hasWeakRefs()) {
+        cb->decreaseWeakRefs();
+        if (!cb.hasWeakRefs() && !cb.hasHardRefs()) { delete this->_controlBlock; }
+    }
     this->_ptr = other._ptr;
     this->_controlBlock = other._controlBlock;
     this->_controlBlock->increaseWeakRefs();
@@ -36,6 +46,11 @@ WeakPtr<T>::WeakPtr( const WeakPtr<T2>& other ) : _ptr(other._ptr) {
 template <typename T>
 template<typename T2> requires (std::is_base_of_v<T,T2>)
 WeakPtr<T>& WeakPtr<T>::operator=( const WeakPtr<T2>& other ) {
+    auto cb = *this->_controlBlock;
+    if (cb->hasWeakRefs()) {
+        cb->decreaseWeakRefs();
+        if (!cb.hasWeakRefs() && !cb.hasHardRefs()) { delete this->_controlBlock; }
+    }
     this->_ptr = other._ptr;
     this->_controlBlock = other._controlBlock;
     this->_controlBlock->increaseWeakRefs();
@@ -52,6 +67,11 @@ WeakPtr<T>::WeakPtr( const SharedPtr<T2>& other ) : _ptr(other._ptr) {
 template <typename T>
 template<typename T2> requires (std::is_base_of_v<T,T2>)
 WeakPtr<T>& WeakPtr<T>::operator=( const SharedPtr<T2>& other ) {
+    auto cb = *this->_controlBlock;
+    if (cb->hasWeakRefs()) {
+        cb->decreaseWeakRefs();
+        if (!cb.hasWeakRefs() && !cb.hasHardRefs()) { delete this->_controlBlock; }
+    }
     this->_ptr = other._ptr;
     this->_controlBlock = other._controlBlock;
     this->_controlBlock->increaseWeakRefs();
@@ -61,7 +81,7 @@ WeakPtr<T>& WeakPtr<T>::operator=( const SharedPtr<T2>& other ) {
 template <typename T>
 WeakPtr<T>::~WeakPtr() {
     this->_controlBlock->decreaseWeakRefs();
-    if ( this->_controlBlock->weakRefs() == 0 && this->_controlBlock->hardRefs() == 0 ) {
+    if ( !this->_controlBlock->hasWeakRefs() && !this->_controlBlock->hasHardRefs() ) {
         delete this->_controlBlock;
     }
 }

@@ -7,6 +7,8 @@ template <typename T>
 class UniquePtr;
 template <typename T>
 class WeakPtr;
+template <typename T>
+class EnableSharedFromThis;
 
 struct RefCount
 {
@@ -16,17 +18,17 @@ public:
     : _hardRefs( hardRefs ), _weakRefs( weakRefs ) {}
     ~RefCount() {}
 public:
-    long hardRefs() { return this->_hardRefs; }
-    long weakRefs() { return this->_weakRefs; }
+    long hardRefs() { return _hardRefs; }
+    long weakRefs() { return _weakRefs; }
 
-    bool hasHardRefs() { return this->_hardRefs != 0; }
-    bool hasWeakRefs() { return this->_weakRefs != 0; }
+    bool hasHardRefs() { return _hardRefs != 0; }
+    bool hasWeakRefs() { return _weakRefs != 0; }
 
-    void increaseHardRefs() { this->_hardRefs++; }
-    void increaseWeakRefs() { this->_weakRefs++; }
+    void increaseHardRefs() { _hardRefs++; }
+    void increaseWeakRefs() { _weakRefs++; }
     
-    void decreaseHardRefs() { this->_hardRefs--; }
-    void decreaseWeakRefs() { this->_weakRefs--; }
+    void decreaseHardRefs() { _hardRefs--; }
+    void decreaseWeakRefs() { _weakRefs--; }
 private:
     long _hardRefs;
     long _weakRefs;
@@ -36,58 +38,71 @@ template <class T>
 class SharedPtr
 {
 private:
-    SharedPtr( T* ptr ) : _ptr( ptr ), _controlBlock( new RefCount(1, 0) ) {}
+    SharedPtr( T* ptr ) : _ptr( ptr ), _controlBlock( new RefCount(1, 0) ) { hookSharedToThis(ptr); }
     SharedPtr( T* ptr, RefCount* count ) : _ptr( ptr ), _controlBlock( count ) {
-        this->_controlBlock->increaseHardRefs();
+        _controlBlock->increaseHardRefs();
+        hookSharedToThis(ptr);
     }
 
     template<typename T2> requires (std::is_base_of_v<T,T2>)
-    SharedPtr( T2* ptr ) : _ptr( ptr ) {}
-
-    SharedPtr( UniquePtr<T>& other ) : _ptr(other._ptr), _controlBlock( new RefCount(1, 0) ) {}
-    SharedPtr( UniquePtr<T>& other, RefCount* count ) : _ptr(other._ptr), _controlBlock( count ) { 
-        this->_controlBlock->increaseHardRefs();
-    }
-
+    SharedPtr( T2* ptr ) : _ptr( ptr ), _controlBlock( new RefCount(1, 0) ) { hookSharedToThis(_ptr); }
     template<typename T2> requires (std::is_base_of_v<T,T2>)
-    SharedPtr( UniquePtr<T2>& other ) : _ptr(other._ptr), _controlBlock( new RefCount(1, 0) ) {}
-    template<typename T2> requires (std::is_base_of_v<T,T2>)
-    SharedPtr( UniquePtr<T2>& other, RefCount* count ) : _ptr(other._ptr), _controlBlock( count ) { 
-        this->_controlBlock->increaseHardRefs();
+    SharedPtr( T2* ptr, RefCount* count ) : _ptr( ptr ), _controlBlock( count ) {
+        _controlBlock->increaseHardRefs();
+        hookSharedToThis(ptr);
     }
     
-    friend class WeakPtr<T>;
-    template <typename T2> 
-    friend class SharedPtr;
-    template <typename T2>
-    friend class WeakPtr;
+    template <typename> friend class SharedPtr;
+    template <typename> friend class WeakPtr;
+    template <typename> friend class EnableSharedFromThis;
+    template <typename T2, typename... Ts>
+    friend SharedPtr<T2> makeShared(Ts&&... args) requires (!std::is_abstract_v<T2>);
+    template <typename T2, typename... Ts>
+    friend SharedPtr<T2> makeShared(Ts&&... args) requires (std::is_abstract_v<T2>);
+
+    template <typename T2> requires (std::is_base_of_v<T,T2>)
+    void hookSharedToThis( T2* ptr ) {
+        if (ptr) {
+            if constexpr( std::is_base_of_v<EnableSharedFromThis<T>,T2> ) {
+                auto *base = static_cast<EnableSharedFromThis<T>*>( ptr );
+                if (base->_self.isExpired()) {
+                    base->_self = *this;
+                }
+            }
+        }
+    }
 public:
-    SharedPtr() requires(!std::is_abstract_v<T>) : _ptr(new T()) , _controlBlock( new RefCount(1, 0) ) {} 
-    
-    SharedPtr() requires(std::is_abstract_v<T>) : _ptr(nullptr) , _controlBlock( new RefCount(1, 0) ) {} 
+    SharedPtr() requires(!std::is_abstract_v<T>) : _ptr(new T()) , _controlBlock( new RefCount(1, 0) ) { hookSharedToThis(_ptr); } 
+    SharedPtr() requires(std::is_abstract_v<T>) : _ptr(nullptr) , _controlBlock(nullptr) {} 
 
-    SharedPtr( UniquePtr<T>&& other, RefCount* count ) : _ptr(other.release()), _controlBlock( count ) {}
-    SharedPtr( UniquePtr<T>&& other ) : _ptr(other.release()), _controlBlock( new RefCount(1, 0)) {}
+    SharedPtr( UniquePtr<T>&& other, RefCount* count ) : _ptr(other.release()), _controlBlock( count ) { hookSharedToThis(_ptr); }
+    SharedPtr( UniquePtr<T>&& other ) : _ptr(other.release()), _controlBlock( new RefCount(1, 0)) { hookSharedToThis(_ptr); }
     SharedPtr<T>& operator=( UniquePtr<T>&& other );
 
     SharedPtr( const SharedPtr<T>& other );
     SharedPtr<T>& operator=( const SharedPtr<T>& other );
-
     SharedPtr( SharedPtr<T>&& other );
     SharedPtr<T>& operator=( SharedPtr<T>&& other );
+
+    SharedPtr( const WeakPtr<T>& other );
+    SharedPtr<T>& operator=( const WeakPtr<T>& other );
+    SharedPtr( WeakPtr<T>&& other );
+    SharedPtr<T>& operator=( WeakPtr<T>&& other );
 
     ~SharedPtr();
 public:
     template <typename T2> requires (std::is_base_of_v<T,T2>)
-    SharedPtr( UniquePtr<T2>&& other, RefCount* count ) : _ptr(other.release()), _controlBlock( count ) {}
+    SharedPtr( UniquePtr<T2>&& other, RefCount* count ) : _ptr(other.release()), _controlBlock( count ) { hookSharedToThis(_ptr); }
 
     template <typename T2> requires (std::is_base_of_v<T,T2>)
-    SharedPtr( UniquePtr<T2>&& other ) : _ptr(other.release()), _controlBlock( new RefCount(1, 0)) {}
+    SharedPtr( UniquePtr<T2>&& other ) : _ptr(other.release()), _controlBlock( new RefCount(1, 0)) { hookSharedToThis(_ptr); }
     template <typename T2> requires (std::is_base_of_v<T,T2>)
     SharedPtr<T>& operator=( UniquePtr<T2>&& other );
 
     template <typename T2> requires (std::is_base_of_v<T,T2>)
-    SharedPtr( const SharedPtr<T2>& other ) : _ptr( other._ptr ), _controlBlock(other._controlBlock) {}
+    SharedPtr( const SharedPtr<T2>& other ) : _ptr( other._ptr ), _controlBlock(other._controlBlock) { 
+        if (_controlBlock) { _controlBlock->increaseHardRefs(); }
+    }
     template <typename T2> requires (std::is_base_of_v<T,T2>)
     SharedPtr<T>& operator=( const SharedPtr<T2>& other );
 
@@ -95,15 +110,25 @@ public:
     SharedPtr( SharedPtr<T2>&& other );
     template <typename T2> requires (std::is_base_of_v<T,T2>)
     SharedPtr<T>& operator=( SharedPtr<T2>&& other );
+
+    template <typename T2> requires (std::is_base_of_v<T,T2>)
+    SharedPtr( const WeakPtr<T2>& other );
+    template <typename T2> requires (std::is_base_of_v<T,T2>)
+    SharedPtr<T>& operator=( const WeakPtr<T2>& other );
+
+    template <typename T2> requires (std::is_base_of_v<T,T2>)
+    SharedPtr( WeakPtr<T2>&& other );
+    template <typename T2> requires (std::is_base_of_v<T,T2>)
+    SharedPtr<T>& operator=( WeakPtr<T2>&& other );
 public:
     operator T*() noexcept {
-        return this->_ptr;
+        return _ptr;
     }
     T* operator->() noexcept {
-        return this->_ptr;
+        return _ptr;
     }
     const T* operator->() const noexcept {
-        return this->_ptr;
+        return _ptr;
     }
 
     T& operator*();
@@ -111,18 +136,18 @@ public:
 
     operator bool() const noexcept;
     bool isUnique() {
-        return this->_controlBlock->hardRefs() == 1;
+        return _controlBlock->hardRefs() == 1;
     }
 public:
     void reset() noexcept;
 
     void swap( SharedPtr<T>& other ) noexcept;
     bool isUnique() const noexcept {
-        return this->_controlBlock->hardRefs() == 1;
+        return _controlBlock->hardRefs() == 1;
     }
 
     int getCount() const noexcept {
-        return this->_controlBlock->hardRefs();
+        return _controlBlock->hardRefs();
     }
 public:
     bool operator==( const SharedPtr<T>& other ) const noexcept;
