@@ -22,8 +22,8 @@ protected:
     ~EnableSharedFromThis() = default;
 private:
     WeakPtr<T> _self;
-    
-    template <typename T2> friend class SharedPtr<T2>;
+     
+    friend class SharedPtr<T>;
 };
 
 #endif // SHARED_FROM_THIS_H

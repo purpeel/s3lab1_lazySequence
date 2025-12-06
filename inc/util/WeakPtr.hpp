@@ -10,7 +10,7 @@ template <class T>
 class WeakPtr 
 {
 public: 
-    WeakPtr() : _ptr( nullptr ), _controlBlock( new RefCount(0, 0) ) {}
+    WeakPtr() : _ptr( nullptr ), _controlBlock( new RefCount(0, 1) ) {}
 
     WeakPtr( const WeakPtr<T>& other );
     WeakPtr& operator=( const WeakPtr<T>& other );
@@ -68,9 +68,15 @@ public:
     template<typename T2> requires (std::is_base_of_v<T,T2>)
     bool operator!=( T2* const& other ) const noexcept;
 private:
+    RefCount* _controlBlock;
+
     T* _ptr;
 
-    RefCount* _controlBlock;
+    friend class SharedPtr<T>;
+    template <typename T2>
+    friend class SharedPtr;
+    template <typename T2>
+    friend class WeakPtr;
 };
 
 #include "WeakPtr.tpp"

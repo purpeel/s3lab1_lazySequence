@@ -29,7 +29,7 @@ public:
     
     void decreaseHardRefs() { _hardRefs--; }
     void decreaseWeakRefs() { _weakRefs--; }
-private:
+private: 
     long _hardRefs;
     long _weakRefs;
 };
@@ -52,25 +52,20 @@ private:
         hookSharedToThis(ptr);
     }
     
-    template <typename> friend class SharedPtr;
-    template <typename> friend class WeakPtr;
-    template <typename> friend class EnableSharedFromThis;
+    friend class EnableSharedFromThis<T>;
+    friend class WeakPtr<T>;
+    template <typename T2> 
+    friend class SharedPtr;
+    template <typename T2>
+    friend class WeakPtr;
     template <typename T2, typename... Ts>
     friend SharedPtr<T2> makeShared(Ts&&... args) requires (!std::is_abstract_v<T2>);
     template <typename T2, typename... Ts>
     friend SharedPtr<T2> makeShared(Ts&&... args) requires (std::is_abstract_v<T2>);
 
     template <typename T2> requires (std::is_base_of_v<T,T2>)
-    void hookSharedToThis( T2* ptr ) {
-        if (ptr) {
-            if constexpr( std::is_base_of_v<EnableSharedFromThis<T>,T2> ) {
-                auto *base = static_cast<EnableSharedFromThis<T>*>( ptr );
-                if (base->_self.isExpired()) {
-                    base->_self = *this;
-                }
-            }
-        }
-    }
+    void hookSharedToThis( T2* ptr );
+    static void manageControlChange( T *& ptr, RefCount *& controlBlock );
 public:
     SharedPtr() requires(!std::is_abstract_v<T>) : _ptr(new T()) , _controlBlock( new RefCount(1, 0) ) { hookSharedToThis(_ptr); } 
     SharedPtr() requires(std::is_abstract_v<T>) : _ptr(nullptr) , _controlBlock(nullptr) {} 

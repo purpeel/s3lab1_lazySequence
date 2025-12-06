@@ -41,7 +41,7 @@ public:
 
     const T& getLast();
 
-    const T& operator[]( const Ordinal& index );
+    T operator[]( const Ordinal& index );
 public:
     SharedPtr<LazySequence<T>> append( const T& value );
     SharedPtr<LazySequence<T>> append( const LazySequence<T>& value );
@@ -79,6 +79,11 @@ private:
  
     SharedPtr<IGenerator> _generator;
     UniquePtr<ArraySequence<T>> _items;
+private:    // sequence-to-sequence and generator-to-sequence interaction methods independent of indices and stuff which support correct memoization process
+    const T& memoiseNext();
+    T get( const Ordinal& index ); // also supports correct memoization because doesn't memoise anything
+    bool canMemoiseNext();
+    Option<T> tryMemoiseNext();
 public:
     class IGenerator
     {
@@ -300,7 +305,7 @@ private:
         MapGenerator( MapGenerator<T2>&& other );
         MapGenerator<T2>& operator=( MapGenerator<T2>&& other );
 
-        ~MapGenerator();
+        ~MapGenerator() = default;
     public:
         T2 getNext() override;
         T2 get( const Ordinal& index ) override;
@@ -332,6 +337,7 @@ private:
         std::function<bool(T)> _predicate;
         SharedPtr<LazySequence<T>> _parent;
         Option<T> _memoized; // need to remember an element since both hasNext() and getNext() are changing the state of parent generator and valid elements can become lost
+        bool _isFinished;
     };
 private:
 //     class LazySequenceIterator

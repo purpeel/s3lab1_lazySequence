@@ -1,10 +1,36 @@
 template <typename T>
-SharedPtr<T>& SharedPtr<T>::operator=( UniquePtr<T>&& other ) {
-    if (_controlBlock) {
-        _controlBlock->decreaseHardRefs();
-        if (!_controlBlock->hasHardRefs()) { delete _ptr; }
-        if (!_controlBlock->hasWeakRefs() && !_controlBlock->hasHardRefs) { delete _controlBlock; }
+template <typename T2> requires (std::is_base_of_v<T,T2>)
+void SharedPtr<T>::hookSharedToThis( T2* ptr ) {
+    if (ptr) {
+        if constexpr( std::is_base_of_v<EnableSharedFromThis<T>,T2> ) {
+            auto *base = static_cast<EnableSharedFromThis<T>*>( ptr );
+            if (base->_self.isExpired()) {
+                base->_self = *this;
+            }
+        }
     }
+}
+
+template <typename T>
+void SharedPtr<T>::manageControlChange( T *& ptr, RefCount *& controlBlock ) {
+    if (controlBlock) {
+        controlBlock->decreaseHardRefs();
+        bool noHard = !controlBlock->hasHardRefs();
+        bool noWeak = !controlBlock->hasWeakRefs();
+        if (noHard) { 
+            delete ptr; 
+            ptr = nullptr;
+            if (noWeak) { 
+                delete controlBlock;
+                controlBlock = nullptr;
+            }
+        }
+    }
+}
+
+template <typename T>
+SharedPtr<T>& SharedPtr<T>::operator=( UniquePtr<T>&& other ) {
+    manageControlChange( _ptr, _controlBlock );
     _ptr = other.release();
     _controlBlock = new RefCount(1, 0);
     hookSharedToThis(_ptr);
@@ -14,17 +40,17 @@ SharedPtr<T>& SharedPtr<T>::operator=( UniquePtr<T>&& other ) {
 template <typename T>
 SharedPtr<T>::SharedPtr( const SharedPtr<T>& other ) : _ptr( other._ptr ) { 
     _controlBlock = other._controlBlock;
-    _controlBlock->increaseHardRefs();
+    if (_controlBlock) {
+        _controlBlock->increaseHardRefs();
+    } else {
+        _controlBlock = new RefCount(1, 0);
+    }
 }
 
 template <typename T>
 SharedPtr<T>& SharedPtr<T>::operator=( const SharedPtr<T>& other ) {
     if (this != &other) {
-        if (_controlBlock) {
-            _controlBlock->decreaseHardRefs();
-            if (!_controlBlock->hasHardRefs()) { delete _ptr; }
-            if (!_controlBlock->hasWeakRefs() && !_controlBlock->hasHardRefs) { delete _controlBlock; }
-        }
+        manageControlChange( _ptr, _controlBlock );
         _ptr = other._ptr;
         _controlBlock = other._controlBlock;
         _controlBlock->increaseHardRefs();
@@ -43,11 +69,7 @@ SharedPtr<T>::SharedPtr( SharedPtr<T>&& other ) {
 template <typename T>
 SharedPtr<T>& SharedPtr<T>::operator=( SharedPtr<T>&& other ) {
     if (this != &other) {
-        if (_controlBlock) {
-            _controlBlock->decreaseHardRefs();
-            if (!_controlBlock->hasHardRefs()) { delete _ptr; }
-            if (!_controlBlock->hasWeakRefs() && !_controlBlock->hasHardRefs) { delete _controlBlock; }
-        }
+        manageControlChange( _ptr, _controlBlock );
         _ptr = other._ptr;
         _controlBlock = other._controlBlock;
         other._ptr = nullptr;
@@ -66,11 +88,7 @@ SharedPtr<T>::SharedPtr( const WeakPtr<T>& other ) : _ptr( other._ptr ) {
 template <typename T>
 SharedPtr<T>& SharedPtr<T>::operator=( const WeakPtr<T>& other ) {
     if (this != &other) {
-        if (_controlBlock) {
-            _controlBlock->decreaseHardRefs();
-            if (!_controlBlock->hasHardRefs()) { delete _ptr; }
-            if (!_controlBlock->hasWeakRefs() && !_controlBlock->hasHardRefs) { delete _controlBlock; }
-        }
+        manageControlChange( _ptr, _controlBlock );
         _ptr = other._ptr;
         _controlBlock = other._controlBlock;
         _controlBlock->increaseHardRefs();
@@ -89,11 +107,7 @@ SharedPtr<T>::SharedPtr( WeakPtr<T>&& other ) {
 template <typename T>
 SharedPtr<T>& SharedPtr<T>::operator=( WeakPtr<T>&& other ) {
     if (this != &other) {
-        if (_controlBlock) {
-            _controlBlock->decreaseHardRefs();
-            if (!_controlBlock->hasHardRefs()) { delete _ptr; }
-            if (!_controlBlock->hasWeakRefs() && !_controlBlock->hasHardRefs) { delete _controlBlock; }
-        }
+        manageControlChange( _ptr, _controlBlock );
         _ptr = other._ptr;
         _controlBlock = other._controlBlock;
         other._ptr = nullptr;
@@ -104,15 +118,7 @@ SharedPtr<T>& SharedPtr<T>::operator=( WeakPtr<T>&& other ) {
 
 template <typename T>
 SharedPtr<T>::~SharedPtr() {
-    if (_controlBlock) {
-        _controlBlock->decreaseHardRefs();
-        if (_controlBlock->hardRefs() == 0) {
-            delete _ptr;
-            if (!(_controlBlock->hasWeakRefs())) {
-                delete _controlBlock;
-            }
-        }
-    }
+    manageControlChange( _ptr, _controlBlock );
 }
 
 template <typename T>
@@ -129,11 +135,7 @@ template <typename T>
 template <typename T2> requires (std::is_base_of_v<T,T2>)
 SharedPtr<T>& SharedPtr<T>::operator=( const SharedPtr<T2>& other ) {
     if (this != &other) {
-        if (_controlBlock) {
-            _controlBlock->decreaseHardRefs();
-            if (!_controlBlock->hasHardRefs()) { delete _ptr; }
-            if (!_controlBlock->hasWeakRefs() && !_controlBlock->hasHardRefs) { delete _controlBlock; }
-        }
+        manageControlChange( _ptr, _controlBlock );
         _ptr = other._ptr;
         _controlBlock = other._controlBlock;
         _controlBlock->increaseHardRefs();
@@ -154,11 +156,7 @@ template <typename T>
 template <typename T2> requires (std::is_base_of_v<T,T2>)
 SharedPtr<T>& SharedPtr<T>::operator=( SharedPtr<T2>&& other ) {
     if (static_cast<void*>(this) != static_cast<void*>(&other)) {
-        if (_controlBlock) {
-            _controlBlock->decreaseHardRefs();
-            if (!_controlBlock->hasHardRefs()) { delete _ptr; }
-            if (!_controlBlock->hasWeakRefs() && !_controlBlock->hasHardRefs) { delete _controlBlock; }
-        }
+        manageControlChange( _ptr, _controlBlock );
         _ptr = other._ptr;
         _controlBlock = other._controlBlock;
         other._ptr = nullptr;
@@ -178,11 +176,7 @@ template <typename T>
 template <typename T2> requires (std::is_base_of_v<T,T2>)
 SharedPtr<T>& SharedPtr<T>::operator=( const WeakPtr<T2>& other ) {
     if (this != &other) {
-        if (_controlBlock) {
-            _controlBlock->decreaseHardRefs();
-            if (!_controlBlock->hasHardRefs()) { delete _ptr; }
-            if (!_controlBlock->hasWeakRefs() && !_controlBlock->hasHardRefs) { delete _controlBlock; }
-        }
+        manageControlChange( _ptr, _controlBlock );
         _ptr = other._ptr;
         _controlBlock = other._controlBlock;
         _controlBlock->increaseHardRefs();
@@ -206,7 +200,7 @@ SharedPtr<T>& SharedPtr<T>::operator=( WeakPtr<T2>&& other ) {
         if (_controlBlock) {
             _controlBlock->decreaseHardRefs();
             if (!_controlBlock->hasHardRefs()) { delete _ptr; }
-            if (!_controlBlock->hasWeakRefs() && !_controlBlock->hasHardRefs) { delete _controlBlock; }
+            if (!_controlBlock->hasWeakRefs() && !_controlBlock->hasHardRefs()) { delete _controlBlock; }
         }
         _ptr = other._ptr;
         _controlBlock = other._controlBlock;
