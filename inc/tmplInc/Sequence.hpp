@@ -26,8 +26,8 @@ public:
     virtual T& operator[]( const int pos ) = 0;
     virtual const T& operator[]( const int pos ) const = 0;
 public:
-    virtual const bool isEmpty() const = 0;
-    virtual const int getSize() const = 0;
+    virtual bool isEmpty() const = 0;
+    virtual size_t getSize() const = 0;
 public: 
     virtual const std::string print() const = 0;
 public: // immutable functions

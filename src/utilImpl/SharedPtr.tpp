@@ -197,11 +197,7 @@ template <typename T>
 template <typename T2> requires (std::is_base_of_v<T,T2>)
 SharedPtr<T>& SharedPtr<T>::operator=( WeakPtr<T2>&& other ) {
     if (static_cast<void*>(this) != static_cast<void*>(&other)) {
-        if (_controlBlock) {
-            _controlBlock->decreaseHardRefs();
-            if (!_controlBlock->hasHardRefs()) { delete _ptr; }
-            if (!_controlBlock->hasWeakRefs() && !_controlBlock->hasHardRefs()) { delete _controlBlock; }
-        }
+        manageControlChange( _ptr, _controlBlock );
         _ptr = other._ptr;
         _controlBlock = other._controlBlock;
         other._ptr = nullptr;
@@ -233,13 +229,7 @@ SharedPtr<T>::operator bool() const noexcept {
 
 template <typename T>
 void SharedPtr<T>::reset() noexcept {
-    _controlBlock->decreaseHardRefs();
-    if (!_controlBlock->hasHardRefs()) {
-        delete _ptr;
-    } else {
-        _ptr = nullptr;
-        _controlBlock = nullptr;
-    }
+    manageControlChange( _ptr, _controlBlock );
 }
 
 template <typename T>

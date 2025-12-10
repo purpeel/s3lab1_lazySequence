@@ -72,7 +72,7 @@ void ArraySequence<T>::copy( const Sequence<T>& src ) {
     }
     try {
         this->array = DynamicArray<T>( 2 * src.getSize() );
-        for ( int index = 0; index < src.getSize(); index++ ) {
+        for ( size_t index = 0; index < src.getSize(); index++ ) {
             this->array.append( src[index] );
         }
     } catch ( std::bad_alloc &ex ) {
@@ -149,13 +149,23 @@ Sequence<T>* ArraySequence<T>::getSubSequence( const int startIndex, const int e
 template <typename T>
 Sequence<T>* ArraySequence<T>::concat( const Sequence<T>& other ) {
     try {
-        for ( int index = 0; index < other.getSize(); index++ ) {
+        for ( size_t index = 0; index < other.getSize(); index++ ) {
             this->append( other[index] );
         }
         return this;
     } catch ( Exception& ex ) {
         throw Exception(ex);
     }
+}
+
+template <typename T>
+void ArraySequence<T>::map( const std::function<T(T)>& func ) {
+    this->array.map(func);
+}
+
+template <typename T>
+void ArraySequence<T>::where( const std::function<bool(T)>& func ) {
+    this->array.where(func);
 }
 
 template <typename T>
@@ -177,12 +187,12 @@ const T& ArraySequence<T>::operator[]( const int pos ) const {
 }
 
 template <typename T>
-const bool ArraySequence<T>::isEmpty() const {
+bool ArraySequence<T>::isEmpty() const {
     return this->array.isEmpty();
 }
 
 template <typename T>
-const int ArraySequence<T>::getSize() const {
+size_t ArraySequence<T>::getSize() const {
     return this->array.getSize();
 }
 
@@ -244,13 +254,23 @@ template <typename T>
 Sequence<T>* ArraySequence<T>::concatImmutable( const Sequence<T>& other ) const {
     try {
         ArraySequence<T>* res = new ArraySequence<T>(*this);
-        for ( int index = 0; index < other.getSize(); index++ ) {
+        for ( size_t index = 0; index < other.getSize(); index++ ) {
             res->append( other[index] );
         }
         return res;
     } catch ( Exception& ex ) {
         throw Exception(ex);
     }
+}
+
+template <typename T>
+Sequence<T>* ArraySequence<T>::mapImmutable( const std::function<T(T)>& func ) const {
+    return new ArraySequence<T>(*this->array.mapImmutable(func));
+}
+
+template <typename T>
+Sequence<T>* ArraySequence<T>::whereImmutable( const std::function<bool(T)>& func ) const {
+    return new ArraySequence<T>(*this->array.whereImmutable(func));
 }
 
 template <typename T>
@@ -266,3 +286,4 @@ template <typename T>
 void ArraySequence<T>::clear() {
     this->array.clear();
 }
+

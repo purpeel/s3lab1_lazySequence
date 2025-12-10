@@ -94,7 +94,7 @@ public:
 
     bool operator<( const size_t& other ) const {
         if (this->isFinite()) { return this->_value.getT1() < other; } 
-        else { false; }
+        else { return false; }
     }
     bool operator>( const size_t& other ) const { 
         if (this->isFinite()) { return this->_value.getT1() > other; } 

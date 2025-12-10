@@ -35,12 +35,14 @@ public:
     void swap( const int pos1, const int pos2 ) override;
     Sequence<T>* getSubSequence( const int startIndex, const int endIndex ) const override;
     Sequence<T>* concat( const Sequence<T>& other ) override;
+    void map( const std::function<T(T)>& func );
+    void where( const std::function<bool(T)>& func );
 public:
     T& operator[]( const int pos ) override;
     const T& operator[]( const int pos ) const override;
 public:
-    const bool isEmpty() const override;
-    const int getSize() const override;
+    bool isEmpty() const override;
+    size_t getSize() const override;
 public:
     Sequence<T>* appendImmutable( const T& value ) const override;
     Sequence<T>* prependImmutable( const T& value ) const override;
@@ -49,6 +51,8 @@ public:
     Sequence<T>* setAtImmutable( const T& value, const int pos ) const override;
     Sequence<T>* swapImmutable( const int pos1, const int pos2 ) const override;
     Sequence<T>* concatImmutable( const Sequence<T>& other ) const override;
+    Sequence<T>* mapImmutable( const std::function<T(T)>& func ) const;
+    Sequence<T>* whereImmutable( const std::function<bool(T)>& func ) const;
 public:
     const std::string print() const override;
 private:

@@ -1,30 +1,30 @@
 template <typename T>
-LazySequence<T>::FiniteGenerator::FiniteGenerator() {
+FiniteGenerator<T>::FiniteGenerator() {
     _data = ArraySequence<T>();
-    _lastMaterialized = 0;
-} 
-
-template <typename T>
-LazySequence<T>::FiniteGenerator::FiniteGenerator( const ArraySequence<T>& data ) {
-    _data = ArraySequence<T>(data);
     _lastMaterialized = 0;
 }
 
 template <typename T>
-LazySequence<T>::FiniteGenerator::FiniteGenerator( const T& value ) {
+FiniteGenerator<T>::FiniteGenerator( ArraySequence<T>&& data ) {
+    _data = ArraySequence<T>( std::move(data) );
+    _lastMaterialized = 0;
+}
+
+template <typename T>
+FiniteGenerator<T>::FiniteGenerator( const T& value ) {
     _data = ArraySequence<T>();
     _data.append(value);
     _lastMaterialized = 0;
 }
 
 template <typename T>
-LazySequence<T>::FiniteGenerator::FiniteGenerator( const FiniteGenerator& other ) {
+FiniteGenerator<T>::FiniteGenerator( const FiniteGenerator<T>& other ) {
     _data = other._data;
     _lastMaterialized = other._lastMaterialized;
 }
 
 template <typename T>
-LazySequence<T>::FiniteGenerator& LazySequence<T>::FiniteGenerator::operator=( const FiniteGenerator& other ) {
+FiniteGenerator<T>& FiniteGenerator<T>::operator=( const FiniteGenerator<T>& other ) {
     if (this != &other) {
         _data = other._data;
         _lastMaterialized = other._lastMaterialized;
@@ -33,14 +33,14 @@ LazySequence<T>::FiniteGenerator& LazySequence<T>::FiniteGenerator::operator=( c
 }
 
 template <typename T>
-LazySequence<T>::FiniteGenerator::FiniteGenerator( FiniteGenerator&& other ) {
+FiniteGenerator<T>::FiniteGenerator( FiniteGenerator<T>&& other ) {
     _data = std::move(other._data);
     _lastMaterialized = other._lastMaterialized;
     other._lastMaterialized = 0;
 }
 
 template <typename T>
-LazySequence<T>::FiniteGenerator& LazySequence<T>::FiniteGenerator::operator=( FiniteGenerator&& other ) {
+FiniteGenerator<T>& FiniteGenerator<T>::operator=( FiniteGenerator<T>&& other ) {
     if (this != &other) {
         _data = std::move(other._data);
         _lastMaterialized = other._lastMaterialized;
@@ -50,22 +50,23 @@ LazySequence<T>::FiniteGenerator& LazySequence<T>::FiniteGenerator::operator=( F
 }
 
 template <typename T>
-T LazySequence<T>::FiniteGenerator::getNext() {
+T FiniteGenerator<T>::getNext() {
+    if (!hasNext()) { throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS ); }
     return _data[static_cast<size_t>(_lastMaterialized++)];
 }
 
 template <typename T>
-T LazySequence<T>::FiniteGenerator::get( const Ordinal& index ) {
+T FiniteGenerator<T>::get( const Ordinal& index ) {
     return _data[static_cast<size_t>(index)];
 }
 
 template <typename T>
-bool LazySequence<T>::FiniteGenerator::hasNext() {
+bool FiniteGenerator<T>::hasNext() {
     return _lastMaterialized < _data.getSize();
 }
 
 template <typename T>
-Option<T> LazySequence<T>::FiniteGenerator::tryGetNext() {
+Option<T> FiniteGenerator<T>::tryGetNext() {
     if (hasNext()) {
         return Option( getNext() );
     } else {
@@ -74,13 +75,13 @@ Option<T> LazySequence<T>::FiniteGenerator::tryGetNext() {
 }
 
 template <typename T>
-LazySequence<T>::InfiniteGenerator::InfiniteGenerator( const InfiniteGenerator& other ) 
+InfiniteGenerator<T>::InfiniteGenerator( const InfiniteGenerator<T>& other ) 
 : _arity(other._arity), _lastMaterialized(0)
 , _window(other._window)
 , _producingFunc(other._producingFunc) {}
 
 template <typename T>
-LazySequence<T>::InfiniteGenerator& LazySequence<T>::InfiniteGenerator::operator=( const InfiniteGenerator& other ) {
+InfiniteGenerator<T>& InfiniteGenerator<T>::operator=( const InfiniteGenerator<T>& other ) {
     if (this != &other) {
         _arity            = other._arity;
         _lastMaterialized = 0;
@@ -91,7 +92,7 @@ LazySequence<T>::InfiniteGenerator& LazySequence<T>::InfiniteGenerator::operator
 }
 
 template <typename T>
-LazySequence<T>::InfiniteGenerator::InfiniteGenerator( InfiniteGenerator&& other ) {
+InfiniteGenerator<T>::InfiniteGenerator( InfiniteGenerator<T>&& other ) {
     _arity            = other._arity;
     _lastMaterialized = other._lastMaterialized;
     _window        = std::move(other._window);
@@ -101,7 +102,7 @@ LazySequence<T>::InfiniteGenerator::InfiniteGenerator( InfiniteGenerator&& other
 }
 
 template <typename T>
-LazySequence<T>::InfiniteGenerator& LazySequence<T>::InfiniteGenerator::operator=( InfiniteGenerator&& other ) {
+InfiniteGenerator<T>& InfiniteGenerator<T>::operator=( InfiniteGenerator<T>&& other ) {
     if (this != &other) {
         _arity            = other._arity;
         _lastMaterialized = other._lastMaterialized;
@@ -114,15 +115,14 @@ LazySequence<T>::InfiniteGenerator& LazySequence<T>::InfiniteGenerator::operator
 }
 
 template <typename T>
-LazySequence<T>::InfiniteGenerator::InfiniteGenerator( const size_t arity
-                                                     , const std::function<T(ArraySequence<T>&)>& func
-                                                     , const ArraySequence<T>& data ) 
-                                                     : _arity(arity), _producingFunc(func) {
-    _window = *data.getSubSequence(0, arity);
+InfiniteGenerator<T>::InfiniteGenerator( const size_t arity
+                                       , const std::function<T(ArraySequence<T>&)>& func
+                                       , const ArraySequence<T>& data ) : _arity(arity), _producingFunc(func) {
+    _window = *static_cast<ArraySequence<T>*>(data.getSubSequence(0, arity));
 }
 
 template <typename T>
-T LazySequence<T>::InfiniteGenerator::getNext() {
+T InfiniteGenerator<T>::getNext() {
     auto next = _producingFunc( _window );
     _window.removeAt(0);
     _window.append(next);
@@ -131,7 +131,7 @@ T LazySequence<T>::InfiniteGenerator::getNext() {
 }
 
 template <typename T>
-T LazySequence<T>::InfiniteGenerator::get( const Ordinal& index ) {
+T InfiniteGenerator<T>::get( const Ordinal& index ) {
     if (index < _lastMaterialized) {
         throw Exception( Exception::ErrorCode::DEMATERIALIZED_ACCESS );
     }
@@ -145,17 +145,17 @@ T LazySequence<T>::InfiniteGenerator::get( const Ordinal& index ) {
 }
 
 template <typename T>
-bool LazySequence<T>::InfiniteGenerator::hasNext() {
+bool InfiniteGenerator<T>::hasNext() {
     return true;
 }
 
 template <typename T>
-Option<T> LazySequence<T>::InfiniteGenerator::tryGetNext() {
+Option<T> InfiniteGenerator<T>::tryGetNext() {
     return Option<T>( getNext() );
 }
 
 template <typename T>
-LazySequence<T>::AppendGenerator::AppendGenerator( const T& value, SharedPtr<LazySequence<T>> parent, const Option<Ordinal>& border ) {
+AppendGenerator<T>::AppendGenerator( const T& value, SharedPtr<LazySequence<T>> parent, const Option<Ordinal>& border ) {
     _initial    = parent;
     _added      = makeShared<LazySequence<T>>(value);
     _border     = border;
@@ -163,15 +163,15 @@ LazySequence<T>::AppendGenerator::AppendGenerator( const T& value, SharedPtr<Laz
 }
 
 template <typename T>
-LazySequence<T>::AppendGenerator::AppendGenerator( const LazySequence<T>& value, SharedPtr<LazySequence<T>> parent, const Option<Ordinal>& border ) {
+AppendGenerator<T>::AppendGenerator( const LazySequence<T>& value, SharedPtr<LazySequence<T>> parent, const Option<Ordinal>& border ) {
     _initial    = parent;
-    _added      = value;    
+    _added      = makeShared<LazySequence<T>>(value);    
     _border     = border;
     _lastMaterialized = 0;
 }
 
 template <typename T>
-LazySequence<T>::AppendGenerator::AppendGenerator( const AppendGenerator& other ) {
+AppendGenerator<T>::AppendGenerator( const AppendGenerator<T>& other ) {
     _initial    = other._initial;
     _added      = other._added;
     _border     = other._border;
@@ -179,7 +179,7 @@ LazySequence<T>::AppendGenerator::AppendGenerator( const AppendGenerator& other 
 }
 
 template <typename T>
-LazySequence<T>::AppendGenerator& LazySequence<T>::AppendGenerator::operator=( const AppendGenerator& other ) {
+AppendGenerator<T>& AppendGenerator<T>::operator=( const AppendGenerator<T>& other ) {
     if (this != &other) {
         _initial    = other._initial;
         _added      = other._added;
@@ -190,7 +190,7 @@ LazySequence<T>::AppendGenerator& LazySequence<T>::AppendGenerator::operator=( c
 }
 
 template <typename T>
-LazySequence<T>::AppendGenerator::AppendGenerator( AppendGenerator&& other ) {
+AppendGenerator<T>::AppendGenerator( AppendGenerator<T>&& other ) {
     _initial    = std::move(other._initial);
     _added      = std::move(other._added);
     _lastMaterialized = other._lastMaterialized;
@@ -200,7 +200,7 @@ LazySequence<T>::AppendGenerator::AppendGenerator( AppendGenerator&& other ) {
 }
 
 template <typename T>
-LazySequence<T>::AppendGenerator& LazySequence<T>::AppendGenerator::operator=( AppendGenerator&& other ) {
+AppendGenerator<T>& AppendGenerator<T>::operator=( AppendGenerator<T>&& other ) {
     if (this != &other) {
         _initial    = std::move(other._initial);
         _added      = std::move(other._added);
@@ -213,9 +213,8 @@ LazySequence<T>::AppendGenerator& LazySequence<T>::AppendGenerator::operator=( A
 }
 
 template <typename T>
-T LazySequence<T>::AppendGenerator::getNext() {
+T AppendGenerator<T>::getNext() {
     if ( !hasNext() ) { throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS ); }
-    auto current = _lastMaterialized++;
     if (_initial->canMemoiseNext()) {
         return _initial->memoiseNext();
     } else if (_added->canMemoiseNext()) {
@@ -226,9 +225,9 @@ T LazySequence<T>::AppendGenerator::getNext() {
 }
 
 template <typename T>
-T LazySequence<T>::AppendGenerator::get( const Ordinal& index ) {
+T AppendGenerator<T>::get( const Ordinal& index ) {
     if (_border.hasValue()) {
-        if (index > _border.get()) {
+        if (index >= _border.get()) {
             return _added->get( index - _border.get() );
         } else {
             return _initial->get( index );
@@ -239,12 +238,12 @@ T LazySequence<T>::AppendGenerator::get( const Ordinal& index ) {
 }
 
 template <typename T>
-bool LazySequence<T>::AppendGenerator::hasNext() {
+bool AppendGenerator<T>::hasNext() {
     return _initial->canMemoiseNext() || _added->canMemoiseNext();
 }
 
 template <typename T>
-Option<T> LazySequence<T>::AppendGenerator::tryGetNext() {
+Option<T> AppendGenerator<T>::tryGetNext() {
     if (hasNext()) {
         return Option<T>( getNext() );
     } else {
@@ -253,7 +252,7 @@ Option<T> LazySequence<T>::AppendGenerator::tryGetNext() {
 }
 
 template <typename T>
-LazySequence<T>::PrependGenerator::PrependGenerator( const T& value, SharedPtr<LazySequence<T>> parent, const Option<Ordinal>& border ) {
+PrependGenerator<T>::PrependGenerator( const T& value, SharedPtr<LazySequence<T>> parent, const Option<Ordinal>& border ) {
     _initial    = parent;
     _added      = makeShared<LazySequence<T>>( value );
     _border     = border;
@@ -261,15 +260,15 @@ LazySequence<T>::PrependGenerator::PrependGenerator( const T& value, SharedPtr<L
 }
 
 template <typename T>
-LazySequence<T>::PrependGenerator::PrependGenerator( const LazySequence<T>& value , SharedPtr<LazySequence<T>> parent, const Option<Ordinal>& border ) {
+PrependGenerator<T>::PrependGenerator( const LazySequence<T>& value , SharedPtr<LazySequence<T>> parent, const Option<Ordinal>& border ) {
     _initial    = parent;
-    _added      = value;
+    _added      = makeShared<LazySequence<T>>( value );
     _border     = border;
     _lastMaterialized = 0;
 }
 
 template <typename T>
-LazySequence<T>::PrependGenerator::PrependGenerator( const PrependGenerator& other ) {
+PrependGenerator<T>::PrependGenerator( const PrependGenerator<T>& other ) {
     _initial    = other._initial;
     _added      = other._added;
     _border     = other._border;
@@ -277,7 +276,7 @@ LazySequence<T>::PrependGenerator::PrependGenerator( const PrependGenerator& oth
 }
 
 template <typename T>
-LazySequence<T>::PrependGenerator& LazySequence<T>::PrependGenerator::operator=( const PrependGenerator& other ) {
+PrependGenerator<T>& PrependGenerator<T>::operator=( const PrependGenerator<T>& other ) {
     if (this != &other) {    
         _initial    = other._initial;
         _added      = other._added;
@@ -288,7 +287,7 @@ LazySequence<T>::PrependGenerator& LazySequence<T>::PrependGenerator::operator=(
 }
 
 template <typename T>
-LazySequence<T>::PrependGenerator::PrependGenerator( PrependGenerator&& other ) {
+PrependGenerator<T>::PrependGenerator( PrependGenerator<T>&& other ) {
     _initial    = std::move(other._initial);
     _added      = std::move(other._added);
     _border     = other._border;
@@ -300,7 +299,7 @@ LazySequence<T>::PrependGenerator::PrependGenerator( PrependGenerator&& other ) 
 }
 
 template <typename T>
-LazySequence<T>::PrependGenerator& LazySequence<T>::PrependGenerator::operator=( PrependGenerator&& other ) {
+PrependGenerator<T>& PrependGenerator<T>::operator=( PrependGenerator<T>&& other ) {
     if (this != &other) {
         _initial    = std::move(other._initial);
         _added      = std::move(other._added);
@@ -314,7 +313,7 @@ LazySequence<T>::PrependGenerator& LazySequence<T>::PrependGenerator::operator=(
 }
 
 template <typename T>
-T LazySequence<T>::PrependGenerator::getNext() {
+T PrependGenerator<T>::getNext() {
     if ( !hasNext() ) { throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS ); }
     _lastMaterialized++;
     if (_added->canMemoiseNext()) {
@@ -327,9 +326,9 @@ T LazySequence<T>::PrependGenerator::getNext() {
 }
 
 template <typename T>
-T LazySequence<T>::PrependGenerator::get( const Ordinal& index ) {
+T PrependGenerator<T>::get( const Ordinal& index ) {
     if (_border.hasValue()) {
-        if (index > _border.get()) {
+        if (index >= _border.get()) {
             return _initial->get( index - _border.get() );
         } else {
             return _added->get( index );
@@ -340,12 +339,12 @@ T LazySequence<T>::PrependGenerator::get( const Ordinal& index ) {
 }
 
 template <typename T>
-bool LazySequence<T>::PrependGenerator::hasNext() {
+bool PrependGenerator<T>::hasNext() {
     return _added->canMemoiseNext() || _initial->canMemoiseNext();
 }
 
 template <typename T>
-Option<T> LazySequence<T>::PrependGenerator::tryGetNext() {
+Option<T> PrependGenerator<T>::tryGetNext() {
     if (hasNext()) {
         return Option<T>( getNext() );
     } else {
@@ -354,7 +353,7 @@ Option<T> LazySequence<T>::PrependGenerator::tryGetNext() {
 }
 
 template <typename T>
-LazySequence<T>::InsertGenerator::InsertGenerator( const T& value, const Ordinal& index, SharedPtr<LazySequence<T>> parent ) {
+InsertGenerator<T>::InsertGenerator( const T& value, const Ordinal& index, SharedPtr<LazySequence<T>> parent ) {
     _initial     = parent;
     _added       = makeShared<LazySequence<T>>(value);
     _targetIndex = index;
@@ -363,7 +362,7 @@ LazySequence<T>::InsertGenerator::InsertGenerator( const T& value, const Ordinal
 }
 
 template <typename T>
-LazySequence<T>::InsertGenerator::InsertGenerator( const LazySequence<T>& value, const Ordinal& index, SharedPtr<LazySequence<T>> parent, const Option<Ordinal>& addedOrdinality ) {
+InsertGenerator<T>::InsertGenerator( const LazySequence<T>& value, const Ordinal& index, SharedPtr<LazySequence<T>> parent, const Option<Ordinal>& addedOrdinality ) {
     _initial     = parent;
     _added       = value._generator;
     _targetIndex = index;
@@ -372,7 +371,7 @@ LazySequence<T>::InsertGenerator::InsertGenerator( const LazySequence<T>& value,
 }
 
 template <typename T>
-LazySequence<T>::InsertGenerator::InsertGenerator( const InsertGenerator& other ) {
+InsertGenerator<T>::InsertGenerator( const InsertGenerator<T>& other ) {
     _initial     = other._initial;
     _added       = other._added;
     _targetIndex = other._targetIndex;
@@ -381,7 +380,7 @@ LazySequence<T>::InsertGenerator::InsertGenerator( const InsertGenerator& other 
 }
 
 template <typename T>
-LazySequence<T>::InsertGenerator& LazySequence<T>::InsertGenerator::operator=( const InsertGenerator& other ) {
+InsertGenerator<T>& InsertGenerator<T>::operator=( const InsertGenerator<T>& other ) {
     if (this != &other) {
         _initial     = other._initial;
         _added       = other._added;
@@ -393,7 +392,7 @@ LazySequence<T>::InsertGenerator& LazySequence<T>::InsertGenerator::operator=( c
 }
 
 template <typename T>
-LazySequence<T>::InsertGenerator::InsertGenerator( InsertGenerator&& other ) {
+InsertGenerator<T>::InsertGenerator( InsertGenerator<T>&& other ) {
     _initial     = std::move(other._initial);
     _added       = std::move(other._added);
     _border      = other._border;
@@ -406,7 +405,7 @@ LazySequence<T>::InsertGenerator::InsertGenerator( InsertGenerator&& other ) {
 }
 
 template <typename T>
-LazySequence<T>::InsertGenerator& LazySequence<T>::InsertGenerator::operator=( InsertGenerator&& other ) {
+InsertGenerator<T>& InsertGenerator<T>::operator=( InsertGenerator<T>&& other ) {
     if (this != &other) {
         _initial     = std::move(other._initial);
         _added       = std::move(other._added);
@@ -422,13 +421,14 @@ LazySequence<T>::InsertGenerator& LazySequence<T>::InsertGenerator::operator=( I
 }
 
 template <typename T>
-T LazySequence<T>::InsertGenerator::getNext() {
-    auto current = _lastMaterialized++;
+T InsertGenerator<T>::getNext() {
     if ( !hasNext() ) { throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS ); }
-    if (   current <  _targetIndex 
-        || current >= _targetIndex && _initial->canMemoiseNext()) {
+    auto current = _lastMaterialized++;
+    if ((current <  _targetIndex || (_border.hasValue() && current >= _border.get())) 
+        && _initial->canMemoiseNext())  {
         return _initial->memoiseNext();
-    } else if (current >= _targetIndex && _added->canMemoiseNext()) {
+    } else if ((current >= _targetIndex && _border.hasValue() && current < _border.get()) 
+                && _added->canMemoiseNext()) {
         return _added->memoiseNext();
     } else {
         throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS );
@@ -436,13 +436,18 @@ T LazySequence<T>::InsertGenerator::getNext() {
 }
 
 template <typename T>
-T LazySequence<T>::InsertGenerator::get( const Ordinal& index ) {
+T InsertGenerator<T>::get( const Ordinal& index ) {
     if (index < _targetIndex) { return (*_initial)[index]; } 
     if (_border.hasValue()) {
-        if (index > _border) {
-            return _initial->get(index - _border + _targetIndex);
-        } else if (index >= _targetIndex && index <= _border) {
+        auto border = _border.get();
+        if (index >= border) {
+            return _initial->get(index - border + _targetIndex); //?? probably incorrect index logic, but firstly need to make _ordinality correct
+        } else if (index >= _targetIndex && index < border) {
             return _added->get(index - _targetIndex);
+        } else if (index < _targetIndex) { 
+            return (*_initial)[index];
+        } else {
+            throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS );
         }
     } else {
         throw Exception( Exception::ErrorCode::UNKNOWN_ORDINALITY );
@@ -450,12 +455,12 @@ T LazySequence<T>::InsertGenerator::get( const Ordinal& index ) {
 }
 
 template <typename T>
-bool LazySequence<T>::InsertGenerator::hasNext() {
+bool InsertGenerator<T>::hasNext() {
     return _initial->canMemoiseNext() || _added->canMemoiseNext();
 }
 
 template <typename T>
-Option<T> LazySequence<T>::InsertGenerator::tryGetNext() {
+Option<T> InsertGenerator<T>::tryGetNext() {
     if ( hasNext() ) {
         return Option<T>( getNext() );
     } else {
@@ -464,7 +469,7 @@ Option<T> LazySequence<T>::InsertGenerator::tryGetNext() {
 }
 
 template <typename T>
-LazySequence<T>::SkipGenerator::SkipGenerator( const Ordinal& index, SharedPtr<LazySequence<T>> parent ) {
+SkipGenerator<T>::SkipGenerator( const Ordinal& index, SharedPtr<LazySequence<T>> parent ) {
     _lastMaterialized = 0;
     _from = index;
     _to = index + 1;
@@ -472,7 +477,7 @@ LazySequence<T>::SkipGenerator::SkipGenerator( const Ordinal& index, SharedPtr<L
 }
 
 template <typename T>
-LazySequence<T>::SkipGenerator::SkipGenerator( const Ordinal& start, const Ordinal& end, SharedPtr<LazySequence<T>> parent ) {
+SkipGenerator<T>::SkipGenerator( const Ordinal& start, const Ordinal& end, SharedPtr<LazySequence<T>> parent ) {
     _lastMaterialized = 0;
     _from = start;
     _to = end;
@@ -480,7 +485,7 @@ LazySequence<T>::SkipGenerator::SkipGenerator( const Ordinal& start, const Ordin
 }
 
 template <typename T>
-LazySequence<T>::SkipGenerator::SkipGenerator( const SkipGenerator& other ) {
+SkipGenerator<T>::SkipGenerator( const SkipGenerator<T>& other ) {
     _lastMaterialized = other._lastMaterialized;
     _from = other._from;
     _to = other._to;
@@ -488,7 +493,7 @@ LazySequence<T>::SkipGenerator::SkipGenerator( const SkipGenerator& other ) {
 }
 
 template <typename T>
-LazySequence<T>::SkipGenerator& LazySequence<T>::SkipGenerator::operator=( const SkipGenerator& other ) {
+SkipGenerator<T>& SkipGenerator<T>::operator=( const SkipGenerator<T>& other ) {
     if (this != &other) {
         _lastMaterialized = other._lastMaterialized;
         _from = other._from;
@@ -499,7 +504,7 @@ LazySequence<T>::SkipGenerator& LazySequence<T>::SkipGenerator::operator=( const
 }
 
 template <typename T>
-LazySequence<T>::SkipGenerator::SkipGenerator( SkipGenerator&& other ) {
+SkipGenerator<T>::SkipGenerator( SkipGenerator<T>&& other ) {
     _lastMaterialized = other._lastMaterialized;
     _from = other._from;
     _to = other._to;
@@ -510,7 +515,7 @@ LazySequence<T>::SkipGenerator::SkipGenerator( SkipGenerator&& other ) {
 }
 
 template <typename T>
-LazySequence<T>::SkipGenerator& LazySequence<T>::SkipGenerator::operator=( SkipGenerator&& other ) {
+SkipGenerator<T>& SkipGenerator<T>::operator=( SkipGenerator<T>&& other ) {
     if (this != &other) {
         _lastMaterialized = other._lastMaterialized;
         _from = other._from;
@@ -524,14 +529,14 @@ LazySequence<T>::SkipGenerator& LazySequence<T>::SkipGenerator::operator=( SkipG
 }
 
 template <typename T>
-T LazySequence<T>::SkipGenerator::getNext() {
+T SkipGenerator<T>::getNext() {
     if (!hasNext()) { throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS ); }
     auto current = _lastMaterialized++;
     if (current < _from) {
         return _parent->memoiseNext();
     } else if (current == _from) {
         if (_to.isFinite()) {
-            for (size_t i = 0; i < _to - _from - 1; i++) {
+            for (size_t i = 0; i < _to - _from; i++) {
                 _parent->memoiseNext();
             }
             return _parent->memoiseNext();
@@ -542,13 +547,13 @@ T LazySequence<T>::SkipGenerator::getNext() {
         if (_to.isFinite()) {
             return _parent->memoiseNext();
         } else {
-            return _parent->get( _to - _from + _lastMaterialized );
+            return _parent->get( _to - _from + current );
         }
     }
 }
 
 template <typename T>
-T LazySequence<T>::SkipGenerator::get( const Ordinal& index ) {
+T SkipGenerator<T>::get( const Ordinal& index ) {
     if (index < _from) {
         return _parent->get(index);
     } else {
@@ -557,12 +562,12 @@ T LazySequence<T>::SkipGenerator::get( const Ordinal& index ) {
 }
 
 template <typename T>
-bool LazySequence<T>::SkipGenerator::hasNext() {
+bool SkipGenerator<T>::hasNext() {
     return _parent->canMemoiseNext();
 }
 
 template <typename T>
-Option<T> LazySequence<T>::SkipGenerator::tryGetNext() {
+Option<T> SkipGenerator<T>::tryGetNext() {
     if (hasNext()) {
         return Option<T>( getNext() );
     } else {
@@ -571,7 +576,7 @@ Option<T> LazySequence<T>::SkipGenerator::tryGetNext() {
 }
 
 template <typename T>
-LazySequence<T>::SubSequenceGenerator::SubSequenceGenerator( const Ordinal& start, const Ordinal& end, SharedPtr<LazySequence<T>> parent ) {
+SubSequenceGenerator<T>::SubSequenceGenerator( const Ordinal& start, const Ordinal& end, SharedPtr<LazySequence<T>> parent ) {
     _from   = start;
     _to     = end;
     _parent = parent;
@@ -579,7 +584,7 @@ LazySequence<T>::SubSequenceGenerator::SubSequenceGenerator( const Ordinal& star
 }
 
 template <typename T>
-LazySequence<T>::SubSequenceGenerator::SubSequenceGenerator( const SubSequenceGenerator& other ) {
+SubSequenceGenerator<T>::SubSequenceGenerator( const SubSequenceGenerator<T>& other ) {
     _from   = other._from;
     _to     = other._to;
     _parent = other._parent;
@@ -587,7 +592,7 @@ LazySequence<T>::SubSequenceGenerator::SubSequenceGenerator( const SubSequenceGe
 }
 
 template <typename T>
-LazySequence<T>::SubSequenceGenerator& LazySequence<T>::SubSequenceGenerator::operator=( const SubSequenceGenerator& other ) {
+SubSequenceGenerator<T>& SubSequenceGenerator<T>::operator=( const SubSequenceGenerator<T>& other ) {
     if (this != &other) {
         _from   = other._from;
         _to     = other._to;
@@ -598,7 +603,7 @@ LazySequence<T>::SubSequenceGenerator& LazySequence<T>::SubSequenceGenerator::op
 }
 
 template <typename T>
-LazySequence<T>::SubSequenceGenerator::SubSequenceGenerator( SubSequenceGenerator&& other ) {
+SubSequenceGenerator<T>::SubSequenceGenerator( SubSequenceGenerator<T>&& other ) {
     _from   = other._from;
     _to     = other._to;
     _parent = std::move(other._parent);
@@ -610,7 +615,7 @@ LazySequence<T>::SubSequenceGenerator::SubSequenceGenerator( SubSequenceGenerato
 }
 
 template <typename T>
-LazySequence<T>::SubSequenceGenerator& LazySequence<T>::SubSequenceGenerator::operator=( SubSequenceGenerator&& other ) {
+SubSequenceGenerator<T>& SubSequenceGenerator<T>::operator=( SubSequenceGenerator<T>&& other ) {
     if (this != &other) {
         _from   = other._from;
         _to     = other._to;
@@ -625,13 +630,14 @@ LazySequence<T>::SubSequenceGenerator& LazySequence<T>::SubSequenceGenerator::op
 }
 
 template <typename T>
-T LazySequence<T>::SubSequenceGenerator::getNext() {
+T SubSequenceGenerator<T>::getNext() {
     if (!hasNext()) { throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS ); }
     auto current = _lastMaterialized++;
     if (_from.isFinite()) {
         if ( current == 0 ) {
-            while ( current < _from - 1 ) {
+            while ( current < _from ) {
                 _parent->memoiseNext();
+                current++;
             }
             return _parent->memoiseNext();
         } else if ( current < _to - _from ) {
@@ -650,7 +656,7 @@ T LazySequence<T>::SubSequenceGenerator::getNext() {
 }
 
 template <typename T>
-T LazySequence<T>::SubSequenceGenerator::get( const Ordinal& index ) {
+T SubSequenceGenerator<T>::get( const Ordinal& index ) {
     if (index >= _from || index < _to) {
         return _parent->get(_from + index);
     } else {
@@ -659,12 +665,12 @@ T LazySequence<T>::SubSequenceGenerator::get( const Ordinal& index ) {
 }
 
 template <typename T>
-bool LazySequence<T>::SubSequenceGenerator::hasNext() {
+bool SubSequenceGenerator<T>::hasNext() {
     return _from + _lastMaterialized < _to;
 }
 
 template <typename T>
-Option<T> LazySequence<T>::SubSequenceGenerator::tryGetNext() {
+Option<T> SubSequenceGenerator<T>::tryGetNext() {
     if (hasNext()) {
         return Option<T>( getNext() );
     } else {
@@ -673,21 +679,21 @@ Option<T> LazySequence<T>::SubSequenceGenerator::tryGetNext() {
 }
 
 template <typename T>
-LazySequence<T>::ConcatGenerator::ConcatGenerator( SharedPtr<LazySequence<T>> first, SharedPtr<LazySequence<T>> second, const Option<Ordinal>& border ) {
+ConcatGenerator<T>::ConcatGenerator( SharedPtr<LazySequence<T>> first, SharedPtr<LazySequence<T>> second, const Option<Ordinal>& border ) {
     _border = border;
     _first  = first;
     _second = second;
 }
 
 template <typename T>
-LazySequence<T>::ConcatGenerator::ConcatGenerator( const ConcatGenerator& other ) {
+ConcatGenerator<T>::ConcatGenerator( const ConcatGenerator<T>& other ) {
     _border = other._border;
     _first  = other._first;
     _second = other._second;
 }
 
 template <typename T>
-LazySequence<T>::ConcatGenerator& LazySequence<T>::ConcatGenerator::operator=( const ConcatGenerator& other ) {
+ConcatGenerator<T>& ConcatGenerator<T>::operator=( const ConcatGenerator<T>& other ) {
     if (this != &other) {
         _border = other._border;
         _first  = other._first;
@@ -697,7 +703,7 @@ LazySequence<T>::ConcatGenerator& LazySequence<T>::ConcatGenerator::operator=( c
 }
 
 template <typename T>
-LazySequence<T>::ConcatGenerator::ConcatGenerator( ConcatGenerator&& other ) {
+ConcatGenerator<T>::ConcatGenerator( ConcatGenerator<T>&& other ) {
     _border = other._border;
     _first  = std::move(other._first);
     _second = std::move(other._second);
@@ -706,7 +712,7 @@ LazySequence<T>::ConcatGenerator::ConcatGenerator( ConcatGenerator&& other ) {
 }
 
 template <typename T>
-LazySequence<T>::ConcatGenerator& LazySequence<T>::ConcatGenerator::operator=( ConcatGenerator&& other ) {
+ConcatGenerator<T>& ConcatGenerator<T>::operator=( ConcatGenerator<T>&& other ) {
     if (this != &other) {
         _border = other._border;
         _first  = std::move(other._first);
@@ -718,7 +724,7 @@ LazySequence<T>::ConcatGenerator& LazySequence<T>::ConcatGenerator::operator=( C
 }
 
 template <typename T>
-T LazySequence<T>::ConcatGenerator::getNext() {
+T ConcatGenerator<T>::getNext() {
     if (_first->canMemoiseNext()) {
         return _first->memoiseNext();
     } else if (_second->canMemoiseNext()) {
@@ -729,7 +735,7 @@ T LazySequence<T>::ConcatGenerator::getNext() {
 }
 
 template <typename T>
-T LazySequence<T>::ConcatGenerator::get( const Ordinal& index ) {
+T ConcatGenerator<T>::get( const Ordinal& index ) {
     if (_border.hasValue()) {
         if (index <= _border.get()) {
             return _first->get(index);
@@ -737,17 +743,17 @@ T LazySequence<T>::ConcatGenerator::get( const Ordinal& index ) {
             return _second->get(index - _border.get());
         }
     } else {
-        throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS );
+        throw Exception( Exception::ErrorCode::UNKNOWN_ORDINALITY );
     }
 }
 
 template <typename T>
-bool LazySequence<T>::ConcatGenerator::hasNext() {
+bool ConcatGenerator<T>::hasNext() {
     return _first->canMemoiseNext() || _second->canMemoiseNext();
 }
 
 template <typename T>
-Option<T> LazySequence<T>::ConcatGenerator::tryGetNext() {
+Option<T> ConcatGenerator<T>::tryGetNext() {
     if (hasNext()) {
         return Option<T>( getNext());
     } else {
@@ -755,23 +761,20 @@ Option<T> LazySequence<T>::ConcatGenerator::tryGetNext() {
     }
 }
 
-template <typename T>
-template <typename T2>
-LazySequence<T>::MapGenerator<T2>::MapGenerator( const std::function<T2(T)>& func, SharedPtr<LazySequence<T>> parent ) {
+template <typename TIn, typename TOut>
+MapGenerator<TIn, TOut>::MapGenerator( const std::function<TOut(TIn)>& func, SharedPtr<LazySequence<TIn>> parent ) {
     _parent = parent;
     _func   = func;
 }
 
-template <typename T>
-template <typename T2>
-LazySequence<T>::MapGenerator<T2>::MapGenerator( const MapGenerator<T2>& other ) {
+template <typename TIn, typename TOut>
+MapGenerator<TIn, TOut>::MapGenerator( const MapGenerator<TIn, TOut>& other ) {
     _parent = other._parent;
     _func   = other._func;
 }
 
-template <typename T>
-template <typename T2>
-LazySequence<T>::MapGenerator<T2>& LazySequence<T>::MapGenerator<T2>::operator=( const MapGenerator<T2>& other ) {
+template <typename TIn, typename TOut>
+MapGenerator<TIn, TOut>& MapGenerator<TIn, TOut>::operator=( const MapGenerator<TIn, TOut>& other ) {
     if (this != &other) {
         _parent = other._parent;
         _func   = other._func;
@@ -779,16 +782,14 @@ LazySequence<T>::MapGenerator<T2>& LazySequence<T>::MapGenerator<T2>::operator=(
     return *this;
 }
 
-template <typename T>
-template <typename T2>
-LazySequence<T>::MapGenerator<T2>::MapGenerator( MapGenerator<T2>&& other ) {
+template <typename TIn, typename TOut>
+MapGenerator<TIn, TOut>::MapGenerator( MapGenerator<TIn, TOut>&& other ) {
     _parent = std::move(other._parent);
     _func   = std::move(other._func);
 }
 
-template <typename T>
-template <typename T2>
-LazySequence<T>::MapGenerator<T2>& LazySequence<T>::MapGenerator<T2>::operator=( MapGenerator<T2>&& other ) {
+template <typename TIn, typename TOut>
+MapGenerator<TIn, TOut>& MapGenerator<TIn, TOut>::operator=( MapGenerator<TIn, TOut>&& other ) {
     if (this != &other) {
         _parent = std::move(other._parent);
         _func = std::move(other._func);
@@ -796,50 +797,46 @@ LazySequence<T>::MapGenerator<T2>& LazySequence<T>::MapGenerator<T2>::operator=(
     return *this;
 }
 
-template <typename T>
-template <typename T2>
-T2 LazySequence<T>::MapGenerator<T2>::getNext() {
+template <typename TIn, typename TOut>
+TOut MapGenerator<TIn, TOut>::getNext() {
     return _func( _parent->memoiseNext() );
 }
 
-template <typename T>
-template <typename T2>
-T2 LazySequence<T>::MapGenerator<T2>::get( const Ordinal& index ) {
+template <typename TIn, typename TOut>
+TOut MapGenerator<TIn, TOut>::get( const Ordinal& index ) {
     return _func( _parent->get( index ) );
 }
 
-template <typename T>
-template <typename T2>
-bool LazySequence<T>::MapGenerator<T2>::hasNext() {
+template <typename TIn, typename TOut>
+bool MapGenerator<TIn, TOut>::hasNext() {
     return _parent->canMemoiseNext();
 }
 
-template <typename T>
-template <typename T2>
-Option<T2> LazySequence<T>::MapGenerator<T2>::tryGetNext() {
+template <typename TIn, typename TOut>
+Option<TOut> MapGenerator<TIn, TOut>::tryGetNext() {
     if (hasNext()) {
-        return Option<T2>( getNext() );
+        return Option<TOut>( getNext() );
     } else {
-        return Option<T2>();
+        return Option<TOut>();
     }
 }
 
 template <typename T>
-LazySequence<T>::WhereGenerator::WhereGenerator( const std::function<bool(T)>& func, SharedPtr<LazySequence<T>> parent )
+WhereGenerator<T>::WhereGenerator( const std::function<bool(T)>& func, SharedPtr<LazySequence<T>> parent )
 : _predicate( func )
 , _parent( parent )
 , _memoized( Option<T>() )
 , _isFinished( false ) {}
 
 template <typename T>
-LazySequence<T>::WhereGenerator::WhereGenerator( const WhereGenerator& other )
+WhereGenerator<T>::WhereGenerator( const WhereGenerator<T>& other )
 : _predicate( other._predicate )
 , _parent( other._parent )
 , _memoized( other._memoized ) 
 , _isFinished( other._isFinished ){}
 
 template <typename T>
-LazySequence<T>::WhereGenerator& LazySequence<T>::WhereGenerator::operator=( const WhereGenerator& other ) {
+WhereGenerator<T>& WhereGenerator<T>::operator=( const WhereGenerator<T>& other ) {
     if (this != &other) {
         _predicate  = other._predicate;
         _parent     = other._parent;
@@ -850,14 +847,14 @@ LazySequence<T>::WhereGenerator& LazySequence<T>::WhereGenerator::operator=( con
 }
 
 template <typename T>
-LazySequence<T>::WhereGenerator::WhereGenerator( WhereGenerator&& other )
+WhereGenerator<T>::WhereGenerator( WhereGenerator<T>&& other )
 : _predicate( std::move( other._predicate ))
 , _parent( std::move( other._parent ))
 , _memoized( std::move( other._memoized )) 
 , _isFinished( other._isFinished ) { other._isFinished = false; }
 
 template <typename T>
-LazySequence<T>::WhereGenerator& LazySequence<T>::WhereGenerator::operator=( WhereGenerator&& other ) {
+WhereGenerator<T>& WhereGenerator<T>::operator=( WhereGenerator<T>&& other ) {
     if (this != &other) {
         _predicate  = std::move(other._predicate);
         _parent     = std::move(other._parent);
@@ -870,7 +867,7 @@ LazySequence<T>::WhereGenerator& LazySequence<T>::WhereGenerator::operator=( Whe
 }
 
 template <typename T>
-T LazySequence<T>::WhereGenerator::getNext() {
+T WhereGenerator<T>::getNext() {
     if (!_isFinished) { 
         if (!hasNext()) { 
             throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS );
@@ -884,14 +881,13 @@ T LazySequence<T>::WhereGenerator::getNext() {
 }
 
 template <typename T>
-T LazySequence<T>::WhereGenerator::get( const Ordinal& index ) {
+T WhereGenerator<T>::get( const Ordinal& index ) {
+    if (index.isFinite()) {}
     throw Exception( Exception::ErrorCode::UNKNOWN_ORDINALITY );
-    //? maybe too strict, but causing a potentially huge change of inner state of generator or even invalidating it
-    //? for getting some element is not really cool
 }
 
 template <typename T>
-bool LazySequence<T>::WhereGenerator::hasNext() {
+bool WhereGenerator<T>::hasNext() {
     if (!_parent->canMemoiseNext() || _isFinished) {
         return false;
     } else {
@@ -908,5 +904,14 @@ bool LazySequence<T>::WhereGenerator::hasNext() {
             }
         }
         return false;
+    }
+}
+
+template <typename T>
+Option<T> WhereGenerator<T>::tryGetNext() {
+    if (hasNext()) {
+        return Option<T>( getNext());
+    } else {
+        return Option<T>();
     }
 }

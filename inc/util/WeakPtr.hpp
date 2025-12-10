@@ -45,7 +45,7 @@ public:
     operator bool() const noexcept;
 
     bool isExpired() { 
-        return !this->_ptr;
+        return (_controlBlock) ? !_controlBlock->hasHardRefs() : true;
     }
 public:
     bool operator==( const WeakPtr<T>& other ) const noexcept;
@@ -68,9 +68,9 @@ public:
     template<typename T2> requires (std::is_base_of_v<T,T2>)
     bool operator!=( T2* const& other ) const noexcept;
 private:
-    RefCount* _controlBlock;
-
     T* _ptr;
+    
+    RefCount* _controlBlock;
 
     friend class SharedPtr<T>;
     template <typename T2>
