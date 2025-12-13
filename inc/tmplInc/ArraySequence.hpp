@@ -25,7 +25,7 @@ public:
 
     void copy( const Sequence<T>& src ) override;
     void clear() override;
-    virtual ~ArraySequence();
+    virtual ~ArraySequence() = default;
 public:
     void append( const T& value ) override;
     void prepend( const T& value ) override;
@@ -59,5 +59,5 @@ private:
     DynamicArray<T> array;
 };
 
-#include "../../src/tmpl/ArraySequence.tpp"
+#include "ArraySequence.tpp"
 #endif // ARRAYSEQ_H

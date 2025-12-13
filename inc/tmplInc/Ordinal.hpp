@@ -19,14 +19,16 @@ private:
         Term( unsigned coefficient, unsigned exponent) : _coefficient(coefficient), _exponent(exponent) {}
 
         bool operator<(const Term& other) const {
-            return this->_exponent < other._exponent;
+            return (_exponent  < other._exponent
+                || (_exponent == other._exponent && _coefficient < other._coefficient ));
         }
         bool operator==(const Term& other) const {
-            return  this->_exponent    ==  other._exponent 
-                    && this->_coefficient ==  other._coefficient;
+            return  _exponent    ==  other._exponent 
+                    && _coefficient ==  other._coefficient;
         }
         bool operator>(const Term& other) const {
-            return this->_exponent > other._exponent;
+            return (_exponent > other._exponent
+                || (_exponent == other._exponent && _coefficient > other._coefficient ));
         }
         bool operator!=(const Term& other) const {
             return !(*this == other);
@@ -43,47 +45,49 @@ public:
     using transfinite = DynamicArray<Term>;
 private:
     Variant<finite, transfinite> _value;
+    finite getFinite() const {
+        return this->_value.isInstanceOfT1() ? _value.getT1() : _value.getT2()[0]._coefficient;
+    }
 public:
     Ordinal() : _value(0) {}
     Ordinal( const size_t& other ) : _value(other) {}
     Ordinal& operator=( const size_t& other ) {
-        this->_value = other;
+        _value = other;
         return *this;
     }
     Ordinal( const transfinite& terms ) : _value(terms) {}
     Ordinal( const Ordinal& other ) : _value(other._value) {}
     Ordinal& operator=( const Ordinal& other ) {
-        this->_value = other._value;
+        _value = other._value;
         return *this;
     }
     static const Ordinal omega() {
         transfinite terms;
         terms.append( Term(1, 1) );
+        terms.append( Term(0, 0) );
         static const Ordinal res = Ordinal(terms);
         return res;
     }
     ~Ordinal() = default;
 public:
     explicit operator size_t() const {
-        if (this->isFinite()) {
-            if (this->_value.isInstanceOfT1()) {
-                return static_cast<size_t>(this->_value.getT1());
-            } else {
-                return this->_value.getT2()[0]._coefficient;
-            }
+        if (isFinite()) {
+            return getFinite();
         } else {
             throw Exception( Exception::ErrorCode::INVALID_TYPE );
         }
     }
     bool operator>( const Ordinal& other ) const {
-        if (this->isFinite() && other.isFinite()) {
-            return this->_value > other._value;
-        } else if (this->isFinite() && other.isTransfinite()) {
+        if (isFinite() && other.isFinite()) {
+            auto arg1 = getFinite();
+            auto arg2 = other.getFinite();
+            return arg1 > arg2;
+        } else if (isFinite() && other.isTransfinite()) {
             return false;
-        } else if (this->isTransfinite() && this->isFinite()) {
+        } else if (isTransfinite() && isFinite()) {
             return true;
         } else {
-            auto thisTerms  = this->_value.getT2();
+            auto thisTerms  = _value.getT2();
             auto otherTerms = other._value.getT2();
             for ( size_t i = 0; i < (thisTerms.getSize() < otherTerms.getSize() ? thisTerms.getSize() : otherTerms.getSize()); i++ ) {
                 auto thisTerm = thisTerms[i];
@@ -99,12 +103,14 @@ public:
         }
     }
     bool operator==( const Ordinal& other ) const {
-        if (this->isFinite() && other.isFinite()) {
-            return this->_value == other._value;
-        } else if (this->isTransfinite() != other.isTransfinite()) {
+        if (isFinite() && other.isFinite()) {
+            auto arg1 = getFinite();
+            auto arg2 = other.getFinite();
+            return arg1 > arg2;
+        } else if (isTransfinite() != other.isTransfinite()) {
             return false;
         } else {
-            auto thisTerms  = this->_value.getT2();
+            auto thisTerms  = _value.getT2();
             auto otherTerms = other._value.getT2();
             for ( size_t i = 0; i < (thisTerms.getSize() < otherTerms.getSize() ? thisTerms.getSize() : otherTerms.getSize()); i++ ) {
                 auto thisTerm = thisTerms[i];
@@ -124,14 +130,16 @@ public:
         return !(*this > other);
     }
     bool operator>=( const Ordinal& other ) const {
-        if (this->isFinite() && other.isFinite()) {
-            return this->_value >= other._value;
-        } else if (this->isFinite() && other.isTransfinite()) {
+        if (isFinite() && other.isFinite()) {
+            auto arg1 = getFinite();
+            auto arg2 = other.getFinite();
+            return arg1 >= arg2;
+        } else if (isFinite() && other.isTransfinite()) {
             return false;
-        } else if (this->isTransfinite() && this->isFinite()) {
+        } else if (isTransfinite() && other.isFinite()) {
             return true;
         } else {
-            auto thisTerms  = this->_value.getT2();
+            auto thisTerms  = _value.getT2();
             auto otherTerms = other._value.getT2();
             for ( size_t i = 0; i < (thisTerms.getSize() < otherTerms.getSize() ? thisTerms.getSize() : otherTerms.getSize()); i++ ) {
                 auto thisTerm = thisTerms[i];
@@ -139,11 +147,11 @@ public:
 
                 if (thisTerm < otherTerm) {
                     return false;
-                } else if (thisTerm >= otherTerm) {
+                } else if (thisTerm > otherTerm) {
                     return true;
                 }
             }
-            return false;
+            return true;
         }
     }
     bool operator!=( const Ordinal& other ) const {
@@ -151,22 +159,22 @@ public:
     }
 
     bool operator>( const size_t& other ) const {
-        if (this->isFinite()) {
-            return this->_value > other;
+        if (isFinite()) {
+            return _value > other;
         } else {
             return true;
         }
     }
     bool operator==( const size_t& other ) const {
-        if (this->isFinite()) {
-            return this->_value == other;
+        if (isFinite()) {
+            return _value == other;
         } else  {
             return false;
         }
     }
     bool operator<( const size_t& other ) const {
-        if (this->isFinite()) {
-            return this->_value < other;
+        if (isFinite()) {
+            return _value < other;
         } else  {
             return false;
         }
@@ -182,14 +190,14 @@ public:
     }
 
     Ordinal& operator++() {
-        if (this->isFinite()) {
-            this->_value = this->_value.getT1() + 1;
+        if (isFinite()) {
+            _value = _value.getT1() + 1;
             return *this;
         } else {
-            if (this->_value.getT2()[this->_value.getT2().getSize()-1]._exponent == 0) {
-                this->_value.getT2()[this->_value.getT2().getSize()-1]._coefficient++;
+            if (_value.getT2()[_value.getT2().getSize()-1]._exponent == 0) {
+                _value.getT2()[_value.getT2().getSize()-1]._coefficient++;
             } else {
-                this->_value.getT2().append( Term(1, 0) );
+                _value.getT2().append( Term(1, 0) );
             }
             return *this;
         }
@@ -202,16 +210,16 @@ public:
     }
 
     Ordinal& operator--() {
-        if (this->isFinite()) {
-            if (this->_value.getT1() > 0) { 
-                this->_value = this->_value.getT1() - 1;
+        if (isFinite()) {
+            if (_value.getT1() > 0) { 
+                _value = _value.getT1() - 1;
                 return *this;
             } else {
                 throw Exception( Exception::ErrorCode::TRANSFINITE_ARITHMETIC );
             }
         } else {
-            if (this->_value.getT2()[this->_value.getT2().getSize()-1]._exponent > 0) {
-                this->_value.getT2()[this->_value.getT2().getSize()-1]._coefficient--;
+            if (_value.getT2()[_value.getT2().getSize()-1]._exponent > 0) {
+                _value.getT2()[_value.getT2().getSize()-1]._coefficient--;
             } else {
                 throw Exception( Exception::ErrorCode::TRANSFINITE_ARITHMETIC );
             }
@@ -226,17 +234,17 @@ public:
     }
 
     Ordinal operator+( const Ordinal& other ) const { 
-        if (this->isFinite() && other.isFinite()) {
-            return Ordinal(this->_value + other._value);
-        } else if (this->isTransfinite() && other.isFinite()) {
-            auto terms = this->_value.getT2();
+        if (isFinite() && other.isFinite()) {
+            return Ordinal(_value + other._value);
+        } else if (isTransfinite() && other.isFinite()) {
+            auto terms = _value.getT2();
             if ( terms[terms.getSize() - 1]._exponent != 0) {
                 terms.append( Term(other._value.getT1(), 0) );
             } else {
                 terms[terms.getSize() - 1]._coefficient += other._value;
             }
             return Ordinal(terms);
-        } else if (this->isFinite() && other.isTransfinite()) {
+        } else if (isFinite() && other.isTransfinite()) {
             return other;
         } else {
             if (*this < other) {
@@ -244,7 +252,7 @@ public:
             } else if (*this == other) {
                 return *this * 2;
             } else {
-                auto thisTerms   = this->_value.getT2();
+                auto thisTerms   = _value.getT2();
                 auto otherTerms  = other._value.getT2();
                 size_t thisIndex = 0;
                 
@@ -261,10 +269,10 @@ public:
         }
     }
     Ordinal operator+( const size_t& other ) const { 
-        if (this->isFinite()) {
-            return Ordinal(this->_value + other);
+        if (isFinite()) {
+            return Ordinal(_value + other);
         } else {
-            auto terms = this->_value.getT2();
+            auto terms = _value.getT2();
             if ( terms[terms.getSize() - 1]._exponent != 0) {
                 terms.append( Term(other, 0) );
             } else {
@@ -275,20 +283,20 @@ public:
     }
 
     Ordinal operator*( const Ordinal& other ) const { 
-        if (this->isFinite() && other.isFinite()) {
-            return Ordinal(this->_value * other._value);
-        } else if (this->isTransfinite() && other.isFinite()) {
-            auto terms = this->_value.getT2();
+        if (isFinite() && other.isFinite()) {
+            return Ordinal(_value * other._value);
+        } else if (isTransfinite() && other.isFinite()) {
+            auto terms = _value.getT2();
             terms.map( [other](const Term& x ) -> Term
                      { 
                          return Term(x._coefficient * other._value, x._exponent); 
                      } 
                      );
             return Ordinal(terms);
-        } else if (this->isFinite() && other.isTransfinite()) {
+        } else if (isFinite() && other.isTransfinite()) {
             return other;
         } else {
-            auto thisTerms = this->_value.getT2();
+            auto thisTerms = _value.getT2();
             auto otherTerms = other._value.getT2();
             transfinite result;
 
@@ -316,10 +324,10 @@ public:
         }
     }
     Ordinal operator*( const size_t& other ) const { 
-        if (this->isFinite()) {
-            return Ordinal(this->_value * other);
+        if (isFinite()) {
+            return Ordinal(_value * other);
         } else {
-            auto terms = this->_value.getT2();
+            auto terms = _value.getT2();
             terms.map( [other](const Term& x ) -> Term
                      { 
                         return Term(x._coefficient * other, x._exponent); 
@@ -330,10 +338,10 @@ public:
     }
 
     Ordinal operator-( const Ordinal& other ) const {
-        if (this->isTransfinite() && other.isFinite()) {
+        if (isTransfinite() && other.isFinite()) {
             return *this;
-        } else if (this->isTransfinite() && other.isTransfinite() && (*this >= other)) {
-            auto terms1 = this->_value.getT2();
+        } else if (isTransfinite() && other.isTransfinite() && (*this >= other)) {
+            auto terms1 = _value.getT2();
             auto terms2 = other._value.getT2();
             if (terms1[0]._exponent > terms2[0]._exponent) {
                 return *this;
@@ -346,26 +354,26 @@ public:
                     }
                     return Ordinal(terms);
                 } else if (terms1[0]._coefficient == terms2[0]._coefficient) {
-                    auto* tail1 = terms1.subArray(1, terms1.getSize());
-                    auto* tail2 = terms2.subArray(1, terms2.getSize());
-                    auto res = Ordinal( Ordinal(*tail1) - Ordinal(*tail2) );
-                    delete tail1;
-                    delete tail2;
+                    auto tail1 = terms1.subArray(1, terms1.getSize());
+                    auto tail2 = terms2.subArray(1, terms2.getSize());
+                    auto res = Ordinal( Ordinal(tail1) - Ordinal(tail2) );
                     return res;
                 } else {
                     throw Exception( Exception::ErrorCode::TRANSFINITE_ARITHMETIC );
                 }
             }
             return Ordinal(terms1);
-        } else if (this->isFinite() && other.isFinite() && (*this >= other)) {
-            return Ordinal( this->_value.getT1() - other._value.getT1() );
+        } else if (isFinite() && other.isFinite() && (*this >= other)) {
+            auto arg1 =       _value.isInstanceOfT1() ?       _value.getT1() :       _value.getT2()[0]._coefficient;
+            auto arg2 = other._value.isInstanceOfT1() ? other._value.getT1() : other._value.getT2()[0]._coefficient;
+            return Ordinal( arg1 - arg2 );
         } else {
             throw Exception( Exception::ErrorCode::TRANSFINITE_ARITHMETIC );
         }
     }
     Ordinal operator-( const size_t& other ) const {
-        if (this->isTransfinite()) {
-            auto terms = this->_value.getT2();
+        if (isTransfinite()) {
+            auto terms = _value.getT2();
             auto tail = terms[terms.getSize() - 1];
             if (tail._coefficient >= other && tail._exponent == 0) {
                 terms[terms.getSize() - 1]._coefficient -= other;
@@ -373,7 +381,7 @@ public:
             return Ordinal(terms);
         } else {
             if (*this >= other) {
-                return Ordinal(this->_value - other);
+                return Ordinal(_value - other);
             } else {
                 throw Exception( Exception::ErrorCode::TRANSFINITE_ARITHMETIC );
             }
@@ -381,13 +389,13 @@ public:
     }
 public:
     bool isFinite() const {
-        return (this->_value.isInstanceOfT1()  // finite
-            || (this->_value.isInstanceOfT2()  // array of size 1 with term which exponent equals 0
-            && this->_value.getT2()[0]._exponent == 0 
-            && this->_value.getT2().getSize() == 1));
+        return (_value.isInstanceOfT1()  // finite
+            || (_value.isInstanceOfT2()  // array of size 1 with term which exponent equals 0
+            &&  _value.getT2()[0]._exponent == 0 
+            &&  _value.getT2().getSize() == 1));
     }
     bool isTransfinite() const {
-        return this->_value.isInstanceOfT2();
+        return (_value.isInstanceOfT2() && _value.getT2().getSize() > 1);
     }
 };
 

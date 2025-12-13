@@ -34,8 +34,7 @@ LazySequence<T>::LazySequence( UniquePtr<IGenerator<T>>&& generator
                              , const Option<Ordinal>& ordinality ) 
 : _size( size ), _offset(0)
 , _ordinality( ordinality )
-, _generator( std::move(generator) )
-, _items( makeUnique<ArraySequence<T>>() ) {}
+, _generator( std::move(generator) ) {}
 
 template <typename T>
 LazySequence<T>::LazySequence( const LazySequence<T>& other ) {
@@ -109,7 +108,7 @@ template <typename T>
 template <typename T2>
 SharedPtr<LazySequence<T2>> LazySequence<T>::create( UniquePtr<IGenerator<T2>>&& generator
                                             , const Cardinal& size
-                                            , const Option<Ordinal>& ordinality  ) {
+                                            , const Option<Ordinal>& ordinality ) {
     return makeShared<LazySequence<T2>>( std::move(generator), size, ordinality );
 }
 
@@ -133,7 +132,7 @@ T LazySequence<T>::getLast() {
 
 template <typename T>
 T LazySequence<T>::operator[]( const Ordinal& index ) {
-    trimItems();
+    trimCache();
     if (_ordinality.hasValue()) {
         if (index < 0 || index >= _ordinality.get()) {
             throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS ); 
@@ -314,7 +313,7 @@ SharedPtr<LazySequence<T>> LazySequence<T>::skip( const Ordinal& index ) {
 template <typename T>
 SharedPtr<LazySequence<T>> LazySequence<T>::skip( const Ordinal& start, const Ordinal& end ) {
     if (_ordinality.hasValue()) {
-        if (start < 0 || end < 0 || end < start || end > _ordinality.get()) {
+        if (end < start || end > _ordinality.get()) {
             throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS );
         }
         auto gen = makeUnique<SkipGenerator<T>>( start, end, this->sharedFromThis() );
@@ -333,11 +332,11 @@ SharedPtr<LazySequence<T>> LazySequence<T>::skip( const Ordinal& start, const Or
 template <typename T>
 SharedPtr<LazySequence<T>> LazySequence<T>::getSubSequence( const Ordinal& start, const Ordinal& end ) {
     if (_ordinality.hasValue()) {
-        if (start < 0 || end < 0 || end < start || end > _ordinality.get()) {
+        if (end < start || end > _ordinality.get()) {
             throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS );
         }
     } else {
-        if (start < 0 || end < 0 || end < start) {
+        if (end < start) {
             throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS );
         }
     }
@@ -409,7 +408,7 @@ const T& LazySequence<T>::memoiseNext() {
     if (_generator->hasNext()) {
         _items->append( _generator->getNext() );
         return (*_items)[ _items->getSize() - 1];
-        trimItems();
+        trimCache();
     } else {
         throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS );
     }
@@ -417,7 +416,11 @@ const T& LazySequence<T>::memoiseNext() {
 
 template <typename T>
 T LazySequence<T>::get( const Ordinal& index ) {
-    return this->_generator->get( index );
+    if (index.isFinite()) {
+        return (*this)[index];
+    } else {
+        return this->_generator->get( index );
+    }
 }
 
 template <typename T>
@@ -435,9 +438,9 @@ Option<T> LazySequence<T>::tryMemoiseNext() {
 }
 
 template <typename T>
-void LazySequence<T>::trimItems() {
-    if (_items->getSize() >= 1337) {
-        *_items = *static_cast<ArraySequence<T>*>(_items->getSubSequence( _items->getSize() - 1000, _items->getSize()));
-        _offset += 337;
+void LazySequence<T>::trimCache() {
+    if (_items->getSize() >= CACHE_MAX_SIZE) {
+        *_items = *static_cast<ArraySequence<T>*>(_items->getSubSequence( _items->getSize() - CACHE_DECREASE_SIZE, _items->getSize()));
+        _offset += CACHE_OFFSET_INCREASE;
     }
 }

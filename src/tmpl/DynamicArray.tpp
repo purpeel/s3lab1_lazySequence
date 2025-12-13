@@ -26,45 +26,53 @@ DynamicArray<T>::DynamicArray( const size_t capacity ) {
 
 template <typename T>
 DynamicArray<T>::DynamicArray( const DynamicArray<T>& src ) {
-    try {
-        this->size = src.size;
-        this->capacity = src.capacity;
-        this->allocBegin = new T[this->capacity];
-        this->data = this->allocBegin + (src.data - src.allocBegin);
-        this->allocEnd = this->allocBegin + this->capacity;
+    this->size = src.size;
+    this->capacity = src.capacity;
+    this->allocBegin = new T[this->capacity];
+    this->data = this->allocBegin + (src.data - src.allocBegin);
+    this->allocEnd = this->allocBegin + this->capacity;
 
-        for ( size_t index = 0; index < this->size; index++ ) {
-            (*this)[index] = src[index];
-        }
-    } catch ( std::bad_alloc &ex ) {
-        throw Exception(ex);
+    for ( size_t index = 0; index < this->size; index++ ) {
+        (*this)[index] = src[index];
     }
 }
 
 template <typename T>
 DynamicArray<T>& DynamicArray<T>::operator=( const DynamicArray<T>& src ) {
-    try {
-        if ( this != &src ) {
-            delete[] this->allocBegin;
+    if ( this != &src ) {
+        delete[] this->allocBegin;
 
-            this->size = src.size;
-            this->capacity = src.capacity;
-            this->allocBegin = new T[this->capacity];
-            this->data = this->allocBegin + (src.data - src.allocBegin);
-            this->allocEnd = this->allocBegin + this->capacity;
-            for ( size_t index = 0; index < this->size; index++ ) {
-                (*this)[index] = src[index];
-            }
+        this->size = src.size;
+        this->capacity = src.capacity;
+        this->allocBegin = new T[this->capacity];
+        this->data = this->allocBegin + (src.data - src.allocBegin);
+        this->allocEnd = this->allocBegin + this->capacity;
+        for ( size_t index = 0; index < this->size; index++ ) {
+            (*this)[index] = src[index];
         }
-    } catch ( std::bad_alloc &ex ) {
-        throw Exception(ex);
     }
     return *this;
 }
 
 template <typename T>
 DynamicArray<T>::DynamicArray( DynamicArray<T>&& src ) {
-    try {
+    this->size = src.size;
+    this->capacity = src.capacity;
+    this->allocBegin = src.allocBegin;
+    this->data = src.data;
+    this->allocEnd = src.allocEnd;
+
+    src.size = 0;
+    src.capacity = 2;
+    src.allocBegin = new T[src.capacity];
+    src.data = src.allocBegin + 1;
+    src.allocEnd = src.allocBegin + src.capacity;
+}
+
+template <typename T>
+DynamicArray<T>& DynamicArray<T>::operator=( DynamicArray<T>&& src ) {
+    if ( this != &src ) {
+        delete[] this->allocBegin;
         this->size = src.size;
         this->capacity = src.capacity;
         this->allocBegin = src.allocBegin;
@@ -76,31 +84,8 @@ DynamicArray<T>::DynamicArray( DynamicArray<T>&& src ) {
         src.allocBegin = new T[src.capacity];
         src.data = src.allocBegin + 1;
         src.allocEnd = src.allocBegin + src.capacity;
-    } catch ( std::bad_alloc &ex ) {
-        throw Exception(ex);
     }
-}
 
-template <typename T>
-DynamicArray<T>& DynamicArray<T>::operator=( DynamicArray<T>&& src ) {
-    try {
-        if ( this != &src ) {
-            delete[] this->data;
-            this->size = src.size;
-            this->capacity = src.capacity;
-            this->allocBegin = src.allocBegin;
-            this->data = src.data;
-            this->allocEnd = src.allocEnd;
-
-            src.size = 0;
-            src.capacity = 2;
-            src.allocBegin = new T[src.capacity];
-            src.data = src.allocBegin + 1;
-            src.allocEnd = src.allocBegin + src.capacity;
-        }
-    } catch ( std::bad_alloc &ex ) {
-        throw Exception(ex);
-    }
     return *this;
 }
 
@@ -204,22 +189,18 @@ void DynamicArray<T>::extend( int sizeDiff ) {
             ? newCapacity + 1000
             : newCapacity;
     }
-    try {
-        if ( newCapacity != this->capacity ) {
-            T* newAllocBegin = new T[newCapacity];
-            T* newData = newAllocBegin + (newCapacity / 4 + 1);
-            T* newAllocEnd = newAllocBegin + newCapacity;
-            for ( size_t index = 0; index < this->size; index++ ) {
-                newData[index] = this->data[index];
-            }
-            delete[] this->allocBegin; 
-            this->capacity = newCapacity;
-            this->allocBegin = newAllocBegin;
-            this->data = newData;
-            this->allocEnd = newAllocEnd;    
+    if ( newCapacity != this->capacity ) {
+        T* newAllocBegin = new T[newCapacity];
+        T* newData = newAllocBegin + (newCapacity / 4 + 1);
+        T* newAllocEnd = newAllocBegin + newCapacity;
+        for ( size_t index = 0; index < this->size; index++ ) {
+            newData[index] = this->data[index];
         }
-    } catch( std::bad_alloc &ex ) {
-        throw Exception(ex);
+        delete[] this->allocBegin;
+        this->capacity = newCapacity;
+        this->allocBegin = newAllocBegin;
+        this->data = newData;
+        this->allocEnd = newAllocEnd;    
     }
 }
 
@@ -241,55 +222,43 @@ void DynamicArray<T>::shrink( const int sizeDiff ) {
             ? newCapacity - 1000
             : newCapacity;
     }
-    try {
-        if ( newCapacity != this->capacity ) {
-            T* newAllocBegin = new T[newCapacity];
-            T* newData = newAllocBegin + (newCapacity / 4 + 1);
-            T* newAllocEnd = newAllocBegin + newCapacity;
-            for ( size_t index = 0; index < this->size; index++ ) {
-                newData[index] = this->data[index];
-            }
-            delete[] this->allocBegin; 
-            this->capacity = newCapacity;
-            this->allocBegin = newAllocBegin;
-            this->data = newData;
-            this->allocEnd = newAllocEnd;    
+    if ( newCapacity != this->capacity ) {
+        T* newAllocBegin = new T[newCapacity];
+        T* newData = newAllocBegin + (newCapacity / 4 + 1);
+        T* newAllocEnd = newAllocBegin + newCapacity;
+        for ( size_t index = 0; index < this->size; index++ ) {
+            newData[index] = this->data[index];
         }
-    } catch( std::bad_alloc &ex ) {
-        throw Exception(ex);
+        delete[] this->allocBegin; 
+        this->capacity = newCapacity;
+        this->allocBegin = newAllocBegin;
+        this->data = newData;
+        this->allocEnd = newAllocEnd;    
     }
 }
 
 template <typename T>
-DynamicArray<T>* DynamicArray<T>::subArray( const size_t startIndex, const size_t endIndex ) const {
+DynamicArray<T> DynamicArray<T>::subArray( const size_t startIndex, const size_t endIndex ) const {
     if ( startIndex > endIndex || startIndex >= this->getSize() || endIndex > this->getSize() ) {
         throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS );
     }
-    try {
-        DynamicArray<T>* res = new DynamicArray<T>(endIndex - startIndex);
-        for ( size_t index = 0; index < endIndex - startIndex; index++ ) {
-            res->append((*this)[index + startIndex]);
-        }
-        return res;
-    } catch ( Exception& ex ) {
-        throw Exception(ex);
+    DynamicArray<T> res = DynamicArray<T>(endIndex - startIndex);
+    for ( size_t index = 0; index < endIndex - startIndex; index++ ) {
+        res.append((*this)[index + startIndex]);
     }
+    return res;
 }
 
 template <typename T>
 DynamicArray<T>* DynamicArray<T>::concat( const DynamicArray<T>& other ) {
-    try {
-        DynamicArray<T>* res = new DynamicArray<T>(this->size + other.size);
-        for ( size_t index = 0; index < this->size; index++ ) {
-            (*res)[index] = (*this)[index];
-        }
-        for ( int index = 0; index < other.size; index++ ) {
-            (*res)[this->size + index] = other[index];
-        }
-        return res;
-    } catch ( Exception& ex ) {
-        throw Exception(ex);
+    DynamicArray<T>* res = new DynamicArray<T>(this->size + other.size);
+    for ( size_t index = 0; index < this->size; index++ ) {
+        (*res)[index] = (*this)[index];
     }
+    for ( int index = 0; index < other.size; index++ ) {
+        (*res)[this->size + index] = other[index];
+    }
+    return res;
 }
 
 template <typename T>

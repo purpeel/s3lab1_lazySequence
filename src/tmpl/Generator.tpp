@@ -118,7 +118,9 @@ template <typename T>
 InfiniteGenerator<T>::InfiniteGenerator( const size_t arity
                                        , const std::function<T(ArraySequence<T>&)>& func
                                        , const ArraySequence<T>& data ) : _arity(arity), _producingFunc(func) {
-    _window = *static_cast<ArraySequence<T>*>(data.getSubSequence(0, arity));
+    auto window = data.getSubSequence(0, arity);
+    _window = *static_cast<ArraySequence<T>*>(window); // RAII ignored since DynamicArray is an old lib and works on raw pointers
+    delete window;
 }
 
 template <typename T>
@@ -441,7 +443,7 @@ T InsertGenerator<T>::get( const Ordinal& index ) {
     if (_border.hasValue()) {
         auto border = _border.get();
         if (index >= border) {
-            return _initial->get(index - border + _targetIndex); //?? probably incorrect index logic, but firstly need to make _ordinality correct
+            return _initial->get(index - border + _targetIndex);
         } else if (index >= _targetIndex && index < border) {
             return _added->get(index - _targetIndex);
         } else if (index < _targetIndex) { 
@@ -547,7 +549,7 @@ T SkipGenerator<T>::getNext() {
         if (_to.isFinite()) {
             return _parent->memoiseNext();
         } else {
-            return _parent->get( _to - _from + current );
+            return _parent->get( _to + (current - _from) );
         }
     }
 }
@@ -737,7 +739,7 @@ T ConcatGenerator<T>::getNext() {
 template <typename T>
 T ConcatGenerator<T>::get( const Ordinal& index ) {
     if (_border.hasValue()) {
-        if (index <= _border.get()) {
+        if (index < _border.get()) {
             return _first->get(index);
         } else {
             return _second->get(index - _border.get());

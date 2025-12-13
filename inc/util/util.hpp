@@ -28,7 +28,9 @@ public:
         INFINITE_CALCULATION = 13,
         TRANSFINITE_ARITHMETIC = 14, 
         DEMATERIALIZED_ACCESS = 15, 
-        UNKNOWN_ORDINALITY = 16
+        UNKNOWN_ORDINALITY = 16,
+        INVALID_ITERATOR = 17, 
+        ITERATOR_AT_INFINITY = 18
     };
 public:
     explicit Exception( std::exception& ex ) : ex(ex) {
@@ -96,6 +98,12 @@ public:
             break;
         case ErrorCode::UNKNOWN_ORDINALITY:
             this->message = "Error. Unable to resolve transfinite indexing for this sequence.";
+            break;
+        case ErrorCode::INVALID_ITERATOR:
+            this->message = "Error. Unable to get valid iterator for this collection.";
+            break;  
+        case ErrorCode::ITERATOR_AT_INFINITY:
+            this->message = "Error. Getting such iterator can result in an infinite loop.";
             break;
         default:
             this->message = "Unknown error.";

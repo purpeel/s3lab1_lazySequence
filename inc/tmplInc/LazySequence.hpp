@@ -73,57 +73,53 @@ public:
 private:
     Cardinal _size;
     size_t _offset;
-    Option<Ordinal> _ordinality; // maximum possible index starting with 1 (might be unable to resolve)
+    Option<Ordinal> _ordinality; // maximum possible index starting with 1 (might be unable to resolve for where)
  
     SharedPtr<IGenerator<T>> _generator;
     UniquePtr<ArraySequence<T>> _items;
-    void trimItems();
-public: // sequence-to-sequence and generator-to-sequence interaction methods independent of indices and stuff which support correct memoization process
+    static const size_t CACHE_MAX_SIZE = 2'000;
+    static const size_t CACHE_DECREASE_SIZE = 1'000;
+    static const size_t CACHE_OFFSET_INCREASE = 1'000;
+    void trimCache();
+public: // methods independent of indices which support correct memoization process
     const T& memoiseNext();
     T get( const Ordinal& index ); // also supports correct memoization because doesn't memoise anything
     bool canMemoiseNext();
     Option<T> tryMemoiseNext();
 private:
-//     class LazySequenceIterator
-//     {
-//     public:
-//         using iterator_category = std::forward_iterator_tag;
-//         using difference_type   = std::ptrdiff_t;
-//         using value_type = T;
-//         using pointer    = T*;
-//         using reference  = T&;
-//     public:
-//         LazySequenceIterator();
+    class LazySequenceIterator
+    {
+    public:
+        using iterator_category = std::input_iterator_tag;
+        using difference_type   = std::ptrdiff_t;
+        using value_type = T;
+        using reference  = T;
+        using pointer    = void;
+    public:
+        LazySequenceIterator();
 
-//         LazySequenceIterator( SharedPtr<IGenerator> generator, const Ordinal& pos );
+        LazySequenceIterator( SharedPtr<LazySequence<T>> parent, const Ordinal& pos );
 
-//         LazySequenceIterator( const LazySequenceIterator& other );
-//         LazySequenceIterator& operator=( const LazySequenceIterator& other );
+        LazySequenceIterator( const LazySequenceIterator& other );
+        LazySequenceIterator& operator=( const LazySequenceIterator& other );
 
-//         LazySequenceIterator( LazySequenceIterator&& other );
-//         LazySequenceIterator& operator=( LazySequenceIterator&& other );
-//     public:
-//         LazySequenceIterator& operator++();
-//         LazySequenceIterator operator++(int);
+        LazySequenceIterator( LazySequenceIterator&& other );
+        LazySequenceIterator& operator=( LazySequenceIterator&& other );
+    public:
+        LazySequenceIterator& operator++();
+        LazySequenceIterator operator++(int);
 
-//         T& operator*();
-//         const T& operator*() const;
-        
-//         T* operator->();
-//         const T* operator->() const;
+        T operator*();
 
-//         bool operator==( const LazySequenceIterator& other ) const noexcept;
-//         bool operator!=( const LazySequenceIterator& other ) const noexcept;
-//     private:
-//         SharedPtr<IGenerator> _observed;
-//         Ordinal _pos;
-//     };
-// public: 
-//     LazySequenceIterator begin();
-//     LazySequenceIterator end();
-
-//     const LazySequenceIterator begin() const;
-//     const LazySequenceIterator end() const;
+        bool operator==( const LazySequenceIterator& other ) const noexcept;
+        bool operator!=( const LazySequenceIterator& other ) const noexcept;
+    private:
+        SharedPtr<LazySequence<T>> _observed;
+        Ordinal _pos;
+    };
+public: 
+    LazySequenceIterator begin();
+    LazySequenceIterator end();
 };
 
 #include "LazySequence.tpp"

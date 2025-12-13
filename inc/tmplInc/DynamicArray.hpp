@@ -26,7 +26,7 @@ public:
     void insertAt( const T& value, size_t pos );
     void removeAt( const size_t pos );
     void swap( const size_t pos1, const size_t pos2 );
-    DynamicArray<T>* subArray( const size_t startIndex, const size_t endIndex ) const;
+    DynamicArray<T> subArray( const size_t startIndex, const size_t endIndex ) const;
     DynamicArray<T>* concat( const DynamicArray<T>& other );
 private:
     void extend( const int sizeDiff );
