@@ -2,6 +2,7 @@
 #define SHARED_FROM_THIS_H
 
 #include "util.hpp"
+#include <concepts>
 #include "WeakPtr.hpp"
 
 template <typename T>
