@@ -271,15 +271,6 @@ Sequence<T>* ArraySequence<T>::whereImmutable( const std::function<bool(T)>& fun
 }
 
 template <typename T>
-const std::string ArraySequence<T>::print() const {
-    try {
-        return this->array.print();
-    } catch ( Exception& ex ) {
-        throw Exception(ex);
-    }
-}
-
-template <typename T>
 void ArraySequence<T>::clear() {
     this->array.clear();
 }

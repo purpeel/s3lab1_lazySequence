@@ -25,11 +25,35 @@ add_test(NAME SmartPtrTests COMMAND SmartPtrTests)
 add_test(NAME LazySequenceTests COMMAND LazySequenceTests)
 
 target_compile_options(SmartPtrTests PRIVATE
-    $<$<CONFIG:Debug>:-g -O0>
+    $<$<CONFIG:Debug>:
+        -g
+        -O0
+        -Wall -Wextra -Werror
+        # -fsanitize=address,undefined
+        # -fno-omit-frame-pointer
+    >
     $<$<CONFIG:Release>:-O3 -DNDEBUG>
 )
 
 target_compile_options(LazySequenceTests PRIVATE
-    $<$<CONFIG:Debug>:-g -O0>
+    $<$<CONFIG:Debug>:
+        -g
+        -O0
+        -Wall -Wextra -Werror
+        # -fsanitize=address,undefined
+        # -fno-omit-frame-pointer
+    >
     $<$<CONFIG:Release>:-O3 -DNDEBUG>
 )
+
+# target_link_options(SmartPtrTests PRIVATE
+#     $<$<CONFIG:Debug>:
+#         -fsanitize=address,undefined
+#     >
+# )
+
+# target_link_options(LazySequenceTests PRIVATE
+#     $<$<CONFIG:Debug>:
+#         -fsanitize=address,undefined
+#     >
+# )

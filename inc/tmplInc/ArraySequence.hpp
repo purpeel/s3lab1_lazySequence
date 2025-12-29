@@ -53,8 +53,6 @@ public:
     Sequence<T>* concatImmutable( const Sequence<T>& other ) const override;
     Sequence<T>* mapImmutable( const std::function<T(T)>& func ) const;
     Sequence<T>* whereImmutable( const std::function<bool(T)>& func ) const;
-public:
-    const std::string print() const override;
 private:
     DynamicArray<T> array;
 };
