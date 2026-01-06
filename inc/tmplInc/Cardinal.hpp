@@ -213,5 +213,10 @@ inline size_t operator*( const size_t& arg1, const Cardinal& arg2 ) {
         return static_cast<size_t>(arg1) * arg2;
     }
 };
+inline bool operator<( const size_t& arg1, const Cardinal& arg2 ) {
+    return arg2.isTransfinite() 
+          ? true
+          : arg1 < static_cast<size_t>(arg2);
+}
 
 #endif // CARDINAL_H

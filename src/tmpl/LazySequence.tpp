@@ -210,7 +210,7 @@ template <typename T>
 SharedPtr<LazySequence<T>> LazySequence<T>::append( const T& value ) {
     auto gen = makeUnique<AppendGenerator<T>>( value, this->sharedFromThis(), _ordinality );
     auto newOrd = _ordinality.hasValue()
-            ? Option<Ordinal>( _ordinality.get() + 1 ) 
+            ? Option<Ordinal>( _ordinality.get() + 1 )
             : Option<Ordinal>();
     return create<T>( std::move(gen), _size + 1, newOrd );
 }

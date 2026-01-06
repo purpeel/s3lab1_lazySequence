@@ -30,7 +30,8 @@ public:
         DEMATERIALIZED_ACCESS = 15, 
         UNKNOWN_ORDINALITY = 16,
         INVALID_ITERATOR = 17, 
-        ITERATOR_AT_INFINITY = 18
+        ITERATOR_AT_INFINITY = 18,
+        INCONSISTENT_CHUNK_ACCESS = 19
     };
 public:
     explicit Exception( std::exception& ex ) : ex(ex) {
@@ -104,6 +105,9 @@ public:
             break;  
         case ErrorCode::ITERATOR_AT_INFINITY:
             this->message = "Error. Getting such iterator can result in an infinite loop.";
+            break;
+        case ErrorCode::INCONSISTENT_CHUNK_ACCESS:
+            this->message = "Error. Indexed access is prohibited due to non-deterministic nature of chunk generation.";
             break;
         default:
             this->message = "Unknown error.";
