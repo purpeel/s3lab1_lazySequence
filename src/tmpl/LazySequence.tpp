@@ -37,6 +37,16 @@ LazySequence<T>::LazySequence( UniquePtr<IGenerator<T>>&& generator
 , _generator( std::move(generator) ) {}
 
 template <typename T>
+LazySequence<T>::LazySequence( UniquePtr<IGenerator<T>>&& generator
+                             , const Cardinal& size
+                             , const Option<Ordinal>& ordinality
+                             , const ArraySequence<T>& data ) 
+: _size( size ), _offset(0)
+, _ordinality( ordinality )
+, _generator( std::move(generator) )
+, _items( makeUnique<ArraySequence<T>>( data) ) {}
+
+template <typename T>
 LazySequence<T>::LazySequence( const LazySequence<T>& other ) {
     _size       = other._size;
     _offset     = other._offset;
@@ -110,6 +120,15 @@ SharedPtr<LazySequence<T2>> LazySequence<T>::create( UniquePtr<IGenerator<T2>>&&
                                             , const Cardinal& size
                                             , const Option<Ordinal>& ordinality ) {
     return makeShared<LazySequence<T2>>( std::move(generator), size, ordinality );
+}
+
+template <typename T>
+template <typename T2>
+SharedPtr<LazySequence<T2>> LazySequence<T>::create( UniquePtr<IGenerator<T2>>&& generator
+                                            , const Cardinal& size
+                                            , const Option<Ordinal>& ordinality
+                                            , const ArraySequence<T>& data ) {
+    return makeShared<LazySequence<T2>>( std::move(generator), size, ordinality, data );
 }
 
 template <typename T>
@@ -197,6 +216,11 @@ size_t LazySequence<T>::getMaterializedCount() const {
 }
 
 template <typename T>
+ArraySequence<T> LazySequence<T>::getMaterialized() const {
+    return *_items;
+}
+
+template <typename T>
 bool LazySequence<T>::isEmpty() const {
     return getSize() == 0;
 }
@@ -212,7 +236,7 @@ SharedPtr<LazySequence<T>> LazySequence<T>::append( const T& value ) {
     auto newOrd = _ordinality.hasValue()
             ? Option<Ordinal>( _ordinality.get() + 1 )
             : Option<Ordinal>();
-    return create<T>( std::move(gen), _size + 1, newOrd );
+    return create<T>( std::move(gen), _size + 1, newOrd, *_items );
 }
 
 template <typename T>
@@ -221,16 +245,21 @@ SharedPtr<LazySequence<T>> LazySequence<T>::append( const LazySequence<T>& value
     auto newOrd = _ordinality.hasValue() && value._ordinality.hasValue()
             ? Option<Ordinal>( _ordinality.get() + value._ordinality.get() ) 
             : Option<Ordinal>();
-    return create<T>( std::move(gen), _size + 1, newOrd );
+    return create<T>( std::move(gen), _size + 1, newOrd, *_items );
 }
 
 template <typename T>
 SharedPtr<LazySequence<T>> LazySequence<T>::prepend( const T& value ) {
-    auto gen = makeUnique<PrependGenerator<T>>( value, this->sharedFromThis(), Option<Ordinal>(1) ); // passing ordinal instead of Option<Ordinal>
+    auto gen = makeUnique<PrependGenerator<T>>( value, this->sharedFromThis(), Option<Ordinal>(1) );
     auto newOrd = _ordinality.hasValue()
             ? Option<Ordinal>( 1 + _ordinality.get()) 
             : Option<Ordinal>();
-    return create<T>( std::move(gen), _size + 1, newOrd );
+    ArraySequence<T> newItems;
+    if (_offset == 0) {
+        newItems.prepend(value);
+    }
+    newItems.concat( *_items );
+    return create<T>( std::move(gen), _size + 1, newOrd, newItems );
 }
 
 template <typename T>
@@ -239,6 +268,8 @@ SharedPtr<LazySequence<T>> LazySequence<T>::prepend( const LazySequence<T>& valu
     auto newOrd = _ordinality.hasValue() && value._ordinality.hasValue()
             ? Option<Ordinal>( value._ordinality.get() + _ordinality.get()) 
             : Option<Ordinal>();
+        
+    ArraySequence<T> newItems = *value._items;
     return create<T>( std::move(gen), _size + value.getSize(), newOrd );
 }
 
@@ -252,6 +283,7 @@ SharedPtr<LazySequence<T>> LazySequence<T>::insertAt( const T& value, const Ordi
         else if (index == _ordinality.get()) { return append ( value ); } 
         else {
             auto gen = makeUnique<InsertGenerator<T>>( value, index, this->sharedFromThis() );
+            
             return create<T>( std::move(gen), _size + 1, 1 + _ordinality.get() );
         }
     } else {
@@ -261,6 +293,7 @@ SharedPtr<LazySequence<T>> LazySequence<T>::insertAt( const T& value, const Ordi
         if (index == 0) { return prepend( value ); }
         else {
             auto gen = makeUnique<InsertGenerator<T>>( value, index, this->sharedFromThis() );
+            
             return create<T>( std::move(gen), _size + 1, _ordinality );
         }
     }
@@ -405,13 +438,9 @@ T2 LazySequence<T>::foldr( const std::function<T2(T, T2)>& func, const T2& base 
 
 template <typename T>
 const T& LazySequence<T>::memoiseNext() {
-    if (_generator->hasNext()) {
-        _items->append( _generator->getNext() );
-        return (*_items)[ _items->getSize() - 1];
-        trimCache();
-    } else {
-        throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS );
-    }
+    _items->append( _generator->getNext() );
+    trimCache();
+    return (*_items)[ _items->getSize() - 1];
 }
 
 template <typename T>

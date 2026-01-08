@@ -366,7 +366,7 @@ InsertGenerator<T>::InsertGenerator( const T& value, const Ordinal& index, Share
 template <typename T>
 InsertGenerator<T>::InsertGenerator( const LazySequence<T>& value, const Ordinal& index, SharedPtr<LazySequence<T>> parent, const Option<Ordinal>& addedOrdinality ) {
     _initial     = parent;
-    _added       = value._generator;
+    _added       = makeShared<LazySequence<T>>(value);
     _targetIndex = index;
     _border      = addedOrdinality.hasValue() ? _targetIndex + addedOrdinality : Option<Ordinal>();
     _lastMaterialized = 0;
@@ -888,6 +888,7 @@ T WhereGenerator<T>::get( const Ordinal& index ) {
     throw Exception( Exception::ErrorCode::UNKNOWN_ORDINALITY );
 }
 
+// #include <iostream>
 template <typename T>
 bool WhereGenerator<T>::hasNext() {
     if (!_parent->canMemoiseNext() || _isFinished) {
@@ -900,7 +901,7 @@ bool WhereGenerator<T>::hasNext() {
                 _memoized = candidate;
                 return true;
             }
-            if (++allowance > 500000) {
+            if (++allowance > 10'000) {
                 _isFinished = true;
                 break;
             }

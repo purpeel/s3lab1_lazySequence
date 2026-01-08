@@ -21,7 +21,11 @@ public:
     LazySequence( ArraySequence<T>& data );
     LazySequence( const size_t arity, const std::function<T(ArraySequence<T>&)>& func, ArraySequence<T>& data );
     LazySequence( UniquePtr<IGenerator<T>>&& generator, const Cardinal& size, const Option<Ordinal>& ordinality );
-public:
+    LazySequence( UniquePtr<IGenerator<T>>&& generator
+                , const Cardinal& size
+                , const Option<Ordinal>& ordinality
+                , const ArraySequence<T>& data );
+
     LazySequence( const LazySequence<T>& other );
     LazySequence<T>& operator=( const LazySequence<T>& other );
 
@@ -36,6 +40,11 @@ public:
     static SharedPtr<LazySequence<T>> create( const size_t arity, const std::function<T(ArraySequence<T>&)>& producingFunc, ArraySequence<T>& data );
     template <typename T2>
     static SharedPtr<LazySequence<T2>> create( UniquePtr<IGenerator<T2>>&& generator, const Cardinal& size, const Option<Ordinal>& ordinality );
+    template <typename T2>
+    static SharedPtr<LazySequence<T2>> create( UniquePtr<IGenerator<T2>>&& generator
+                                             , const Cardinal& size
+                                             , const Option<Ordinal>& ordinality
+                                             , const ArraySequence<T>& data );
 public:
     T getFirst();
     T getLast();
@@ -68,6 +77,7 @@ public:
 public:
     Cardinal getSize() const;
     size_t getMaterializedCount() const;
+    ArraySequence<T> getMaterialized() const;
     bool isEmpty() const;
     bool isFinite() const;
 private:
